@@ -103,7 +103,7 @@ const Profile = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>About Philly Cookie Hunt</CardTitle>
+          <CardTitle>About GreatCookieHunt</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">

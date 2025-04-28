@@ -66,7 +66,7 @@ function App() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#003DA5]">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Philly Cookie Hunt</h1>
+          <h1 className="text-2xl font-bold text-white mb-4">GreatCookieHunt</h1>
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white mx-auto"></div>
           <p className="mt-4 text-white">Loading your adventure...</p>
         </div>
@@ -78,7 +78,7 @@ function App() {
     <div className="flex flex-col h-screen bg-[#F8F8F8]">
       {/* Header */}
       <header className="bg-[#003DA5] text-white p-3 flex justify-between items-center shadow-md">
-        <h1 className="text-xl font-bold">Philly Cookie Hunt</h1>
+        <h1 className="text-xl font-bold">GreatCookieHunt</h1>
         <Button 
           variant="ghost" 
           size="icon" 

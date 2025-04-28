@@ -76,6 +76,13 @@ const SimpleMap = () => {
       <div className="flex-1 w-full h-full bg-blue-50 overflow-hidden">
         {/* Philly-themed map background with grid */}
         <div className="h-full w-full relative">
+          {/* Map title */}
+          <div className="absolute top-2 left-2 right-2 text-center z-10">
+            <h2 className="text-xl font-bold text-[#003DA5] bg-white/80 inline-block px-4 py-2 rounded-lg shadow">
+              GreatCookieHunt - Philadelphia
+            </h2>
+          </div>
+          
           {/* Grid pattern */}
           <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
             {Array.from({ length: 64 }).map((_, i) => (
@@ -127,23 +134,26 @@ const SimpleMap = () => {
       </div>
       
       {/* Stats Card */}
-      <Card className="absolute bottom-4 left-0 right-0 mx-4 bg-white/90 shadow-lg">
+      <Card className="absolute bottom-4 left-0 right-0 mx-4 bg-white shadow-lg z-20">
         <CardContent className="p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Steps</p>
-              <p className="text-xl font-bold">{steps}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Distance</p>
-              <p className="text-xl font-bold">{(distance / 1000).toFixed(2)} km</p>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex gap-8">
+              <div>
+                <p className="text-sm text-muted-foreground">Steps</p>
+                <p className="text-xl font-bold">{steps}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Distance</p>
+                <p className="text-xl font-bold">{(distance / 1000).toFixed(2)} km</p>
+              </div>
             </div>
             <Button 
               variant={isTracking ? "destructive" : "default"}
               onClick={isTracking ? stopTracking : startTracking}
-              className={isTracking ? "bg-red-500 hover:bg-red-600" : "bg-[#003DA5]"}
+              className={`${isTracking ? "bg-red-500 hover:bg-red-600" : "bg-[#003DA5]"} px-6 py-2 text-white font-bold text-base`}
+              size="lg"
             >
-              {isTracking ? "Stop" : "Start"} Tracking
+              {isTracking ? "STOP" : "START"} TRACKING
             </Button>
           </div>
         </CardContent>
