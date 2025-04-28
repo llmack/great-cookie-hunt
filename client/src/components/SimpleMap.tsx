@@ -133,31 +133,33 @@ const SimpleMap = () => {
         </Button>
       </div>
       
-      {/* Fixed Stats Card with Separate Tracking Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-30">
+      {/* Simplified Stats and Tracking Button for better visibility */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 pb-16 pt-4 bg-gradient-to-t from-white to-transparent">
         {/* Stats Panel */}
-        <Card className="mx-4 mb-4 bg-white shadow-lg">
-          <CardContent className="px-4 pt-4 pb-2">
-            <div className="flex justify-around items-center">
-              <div>
-                <p className="text-sm text-muted-foreground">Steps</p>
-                <p className="text-xl font-bold">{steps}</p>
+        <div className="mx-auto max-w-xs mb-4">
+          <Card className="bg-white shadow-lg">
+            <CardContent className="p-3">
+              <div className="flex justify-between items-center">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Steps</p>
+                  <p className="text-xl font-bold">{steps}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Distance</p>
+                  <p className="text-xl font-bold">{(distance / 1000).toFixed(2)} km</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Distance</p>
-                <p className="text-xl font-bold">{(distance / 1000).toFixed(2)} km</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
         
-        {/* Separate Tracking Button */}
-        <div className="flex justify-center mb-8">
+        {/* Large Visible Tracking Button */}
+        <div className="flex justify-center mx-4 mb-4">
           <Button 
             variant={isTracking ? "destructive" : "default"}
             onClick={isTracking ? stopTracking : startTracking}
-            className={`${isTracking ? "bg-red-500 hover:bg-red-600" : "bg-[#003DA5]"} px-10 py-6 text-white font-bold text-lg shadow-lg`}
-            size="lg"
+            className={`${isTracking ? "bg-red-500 hover:bg-red-600" : "bg-[#003DA5]"} 
+              w-full max-w-xs py-6 text-white font-bold text-xl tracking-wide shadow-lg rounded-xl`}
           >
             {isTracking ? "STOP" : "START"} TRACKING
           </Button>
@@ -166,12 +168,12 @@ const SimpleMap = () => {
       
       {/* Welcome message for new users - only show when not tracking */}
       {!isTracking && (
-        <div className="absolute top-[20%] left-0 right-0 mx-auto max-w-sm z-10">
+        <div className="absolute top-[15%] left-0 right-0 mx-auto max-w-sm z-10">
           <Card className="bg-white/95 shadow-lg border-2 border-[#003DA5]">
-            <CardContent className="p-6 text-center">
-              <h3 className="font-bold text-xl mb-3 text-[#003DA5]">Start Your Cookie Hunt!</h3>
-              <p className="mb-3">Walk around Philadelphia to collect virtual cookies and golden tickets!</p>
-              <p className="text-sm mb-4">Press the "Start Tracking" button to begin your adventure.</p>
+            <CardContent className="p-5 text-center">
+              <h3 className="font-bold text-xl mb-2 text-[#003DA5]">Start Your Cookie Hunt!</h3>
+              <p className="mb-2">Walk around Philadelphia to collect virtual cookies and golden tickets!</p>
+              <p className="text-sm mb-2">Look for the blue "START TRACKING" button at the bottom of your screen.</p>
               <p className="text-xs text-muted-foreground">(For this demo, we'll simulate movement around Philadelphia)</p>
             </CardContent>
           </Card>
