@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Compass, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserStore } from '@/lib/stores/useUserStore';
+import { useAudio } from '@/lib/stores/useAudio';
+import AudioControls from './AudioControls';
 
 const DEFAULT_LOCATION = { lat: 39.9526, lng: -75.1652 }; // Philadelphia City Hall
 
@@ -17,6 +19,18 @@ const SimpleMap = () => {
   const [steps, setSteps] = useState(0);
   const [distance, setDistance] = useState(0);
   const { addSteps, addDistance, collectItem } = useUserStore();
+  const { playSound, initSounds, startBackgroundMusic } = useAudio();
+  
+  // Initialize audio when component mounts
+  useEffect(() => {
+    initSounds();
+    // Start background music with short delay to avoid autoplay restrictions
+    const timer = setTimeout(() => {
+      startBackgroundMusic();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [initSounds, startBackgroundMusic]);
 
   // Start tracking (simplified simulation)
   const startTracking = () => {
@@ -45,9 +59,13 @@ const SimpleMap = () => {
         if (isCookie) {
           const value = Math.floor(Math.random() * 3) + 1;
           collectItem('cookie', value);
+          // Play cookie collection sound
+          playSound('cookieCollect');
           toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
         } else {
           collectItem('ticket', 1);
+          // Play ticket collection sound
+          playSound('ticketCollect');
           toast.success("You found a golden ticket!");
         }
       }
