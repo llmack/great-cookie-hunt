@@ -133,11 +133,12 @@ const SimpleMap = () => {
         </Button>
       </div>
       
-      {/* Stats Card */}
-      <Card className="absolute bottom-4 left-0 right-0 mx-4 bg-white shadow-lg z-20">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex gap-8">
+      {/* Fixed Stats Card with Separate Tracking Button */}
+      <div className="fixed bottom-0 left-0 right-0 z-30">
+        {/* Stats Panel */}
+        <Card className="mx-4 mb-4 bg-white shadow-lg">
+          <CardContent className="px-4 pt-4 pb-2">
+            <div className="flex justify-around items-center">
               <div>
                 <p className="text-sm text-muted-foreground">Steps</p>
                 <p className="text-xl font-bold">{steps}</p>
@@ -147,17 +148,21 @@ const SimpleMap = () => {
                 <p className="text-xl font-bold">{(distance / 1000).toFixed(2)} km</p>
               </div>
             </div>
-            <Button 
-              variant={isTracking ? "destructive" : "default"}
-              onClick={isTracking ? stopTracking : startTracking}
-              className={`${isTracking ? "bg-red-500 hover:bg-red-600" : "bg-[#003DA5]"} px-6 py-2 text-white font-bold text-base`}
-              size="lg"
-            >
-              {isTracking ? "STOP" : "START"} TRACKING
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        
+        {/* Separate Tracking Button */}
+        <div className="flex justify-center mb-8">
+          <Button 
+            variant={isTracking ? "destructive" : "default"}
+            onClick={isTracking ? stopTracking : startTracking}
+            className={`${isTracking ? "bg-red-500 hover:bg-red-600" : "bg-[#003DA5]"} px-10 py-6 text-white font-bold text-lg shadow-lg`}
+            size="lg"
+          >
+            {isTracking ? "STOP" : "START"} TRACKING
+          </Button>
+        </div>
+      </div>
       
       {/* Welcome message for new users - only show when not tracking */}
       {!isTracking && (
