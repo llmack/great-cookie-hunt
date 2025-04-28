@@ -1,64 +1,62 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useUserStore } from '@/lib/stores/useUserStore';
 import { toast } from 'sonner';
+import { useUserStore } from '@/lib/stores/useUserStore';
 import { apiRequest } from '@/lib/queryClient';
 
 const Profile = () => {
-  const { username, totalSteps, totalDistance, saveUsername } = useUserStore();
-  const [nameInput, setNameInput] = useState(username || '');
-  const [isEditing, setIsEditing] = useState(!username);
+  const { username, totalSteps, totalDistance, totalCookies, totalTickets, saveUsername } = useUserStore();
+  const [editMode, setEditMode] = useState(false);
+  const [newUsername, setNewUsername] = useState(username || '');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Calculate achievements
-  const achievementProgress = Math.min(
-    (totalSteps / 10000) * 100, 
-    100
-  );
-  
-  const distanceKm = totalDistance / 1000;
-
-  // Handle save username
   const handleSave = async () => {
-    if (!nameInput.trim()) {
-      toast.error("Please enter a username");
+    if (!newUsername.trim()) {
+      toast.error('Username cannot be empty');
       return;
     }
-    
+
+    setIsLoading(true);
     try {
-      await apiRequest('POST', '/api/user/username', { username: nameInput });
-      saveUsername(nameInput);
-      setIsEditing(false);
-      toast.success("Username saved!");
+      // Save to API
+      await apiRequest('POST', '/api/user/username', { username: newUsername });
+      
+      // Update local state
+      saveUsername(newUsername);
+      setEditMode(false);
+      toast.success('Username saved successfully!');
     } catch (error) {
       console.error('Failed to save username:', error);
-      toast.error("Failed to save username. Please try again.");
+      toast.error('Failed to save username. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Profile</CardTitle>
+        <CardHeader>
+          <CardTitle>Your Profile</CardTitle>
         </CardHeader>
         <CardContent>
-          {isEditing ? (
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="username">Username</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="username"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Enter your username"
-                    maxLength={20}
-                  />
-                  <Button onClick={handleSave}>Save</Button>
-                </div>
+          {editMode ? (
+            <div className="space-y-4">
+              <Input
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="Enter username"
+                className="w-full"
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleSave} disabled={isLoading}>
+                  {isLoading ? 'Saving...' : 'Save'}
+                </Button>
+                <Button variant="outline" onClick={() => setEditMode(false)}>
+                  Cancel
+                </Button>
               </div>
             </div>
           ) : (
@@ -66,9 +64,9 @@ const Profile = () => {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-muted-foreground">Username</p>
-                  <p className="text-xl font-bold">{username}</p>
+                  <p className="text-xl font-bold">{username || 'Anonymous Cookie Hunter'}</p>
                 </div>
-                <Button variant="outline" onClick={() => setIsEditing(true)}>
+                <Button variant="outline" onClick={() => setEditMode(true)}>
                   Edit
                 </Button>
               </div>
@@ -78,50 +76,42 @@ const Profile = () => {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Statistics</CardTitle>
+        <CardHeader>
+          <CardTitle>Your Stats</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="bg-gray-100 p-4 rounded-lg">
               <p className="text-sm text-muted-foreground">Total Steps</p>
-              <p className="text-xl font-bold">{totalSteps.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{totalSteps.toLocaleString()}</p>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Distance</p>
-              <p className="text-xl font-bold">{distanceKm.toFixed(2)} km</p>
+            <div className="bg-gray-100 p-4 rounded-lg">
+              <p className="text-sm text-muted-foreground">Distance Traveled</p>
+              <p className="text-2xl font-bold">{(totalDistance / 1000).toFixed(2)} km</p>
             </div>
-          </div>
-          
-          <div className="mt-4">
-            <p className="text-sm text-muted-foreground mb-1">10,000 Steps Challenge</p>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-blue-600 h-2.5 rounded-full" 
-                style={{ width: `${achievementProgress}%` }}
-              ></div>
+            <div className="bg-gray-100 p-4 rounded-lg">
+              <p className="text-sm text-muted-foreground">Total Cookies</p>
+              <p className="text-2xl font-bold">{totalCookies}</p>
             </div>
-            <p className="text-xs text-right mt-1">{achievementProgress.toFixed(0)}% complete</p>
+            <div className="bg-gray-100 p-4 rounded-lg">
+              <p className="text-sm text-muted-foreground">Golden Tickets</p>
+              <p className="text-2xl font-bold">{totalTickets}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>About</CardTitle>
+        <CardHeader>
+          <CardTitle>About Philly Cookie Hunt</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Walk around Philadelphia collecting cookies and golden tickets to earn 
-            free real cookies at participating bakeries! The more you explore, the more you earn.
+          <p className="text-sm text-muted-foreground mb-4">
+            Walk around Philadelphia to find virtual cookies and golden tickets. Redeem them for real treats at participating bakeries!
           </p>
-          
-          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <p className="text-sm font-medium text-amber-800">
-              <span className="font-bold">How to redeem:</span> Visit any participating 
-              bakery and show your golden tickets to receive free cookies!
-            </p>
-          </div>
+          <p className="text-sm font-medium">
+            Created by the Cookie Hunters Team
+          </p>
         </CardContent>
       </Card>
     </div>
