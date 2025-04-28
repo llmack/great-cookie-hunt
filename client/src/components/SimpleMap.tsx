@@ -151,6 +151,9 @@ const SimpleMap = () => {
         </Button>
       </div>
       
+      {/* Audio Controls */}
+      <AudioControls />
+      
       {/* Simplified Stats and Tracking Button for better visibility */}
       <div className="fixed bottom-0 left-0 right-0 z-30 pb-16 pt-4 bg-gradient-to-t from-white to-transparent">
         {/* Stats Panel */}

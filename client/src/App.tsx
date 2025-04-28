@@ -16,7 +16,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("map");
   const [isLoading, setIsLoading] = useState(true);
   const { initializeUser } = useUserStore();
-  const { isMuted, toggleMute, setBackgroundMusic } = useAudio();
+  const { isMuted, toggleMute, initSounds } = useAudio();
   
   // Initialize user and audio
   useEffect(() => {
@@ -24,31 +24,8 @@ function App() {
       // Initialize user data
       initializeUser();
       
-      // Initialize background music - with error handling
-      try {
-        const bgMusic = new Audio('/sounds/background.mp3');
-        bgMusic.loop = true;
-        bgMusic.volume = 0.3;
-        setBackgroundMusic(bgMusic);
-      } catch (error) {
-        console.error("Failed to initialize background music:", error);
-      }
-      
-      // Create hit sound - with error handling
-      try {
-        const hitSound = new Audio('/sounds/hit.mp3');
-        useAudio.getState().setHitSound(hitSound);
-      } catch (error) {
-        console.error("Failed to initialize hit sound:", error);
-      }
-      
-      // Create success sound - with error handling
-      try {
-        const successSound = new Audio('/sounds/success.mp3');
-        useAudio.getState().setSuccessSound(successSound);
-      } catch (error) {
-        console.error("Failed to initialize success sound:", error);
-      }
+      // Initialize sounds using our new audio system
+      initSounds();
     } catch (error) {
       console.error("Error during initialization:", error);
     } finally {
