@@ -58,7 +58,8 @@ export class MemStorage implements IStorage {
       cookies: 0,
       tickets: 0,
       totalCookies: 0,
-      totalTickets: 0
+      totalTickets: 0,
+      role: 'user'
     };
     this.users.set(id, user);
     return user;
@@ -169,7 +170,8 @@ export class DatabaseStorage implements IStorage {
         cookies: 0,
         tickets: 0,
         totalCookies: 0,
-        totalTickets: 0
+        totalTickets: 0,
+        role: 'user'
       })
       .returning();
     return user;
