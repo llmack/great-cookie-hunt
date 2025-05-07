@@ -38,8 +38,9 @@ const soundSettings: Record<SoundType, { volume: number, loop: boolean }> = {
   walking: { volume: 0.2, loop: false }
 };
 
-// Main background music path - direct link to Pixabay audio file
-const BACKGROUND_MUSIC_PATH = 'https://cdn.pixabay.com/download/audio/2022/11/05/audio_0d5eb59e6c.mp3';
+// We can't use direct external links due to CORS restrictions
+// Instead, we'll create audio procedurally with the Web Audio API
+const AUDIO_ENABLED = true;
 
 // Create a placeholder sound object
 const createEmptySound = (volume: number, loop: boolean): Sound => ({
@@ -50,37 +51,125 @@ const createEmptySound = (volume: number, loop: boolean): Sound => ({
   error: false
 });
 
-// Create audio with proper error handling
-const createAudio = (url: string, volume: number, loop: boolean): Sound => {
-  // Create a placeholder sound first
-  const sound = createEmptySound(volume, loop);
+// Create synthesized audio for cookie collection
+const createCookieSound = (volume: number): Sound => {
+  const sound = createEmptySound(volume, false);
   
   try {
+    // Create an audio context
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.3, audioContext.sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    
+    // Generate a simple "blip" sound
+    for (let i = 0; i < audioBuffer.length; i++) {
+      // Sine wave with decaying amplitude
+      const decay = 1.0 - (i / audioBuffer.length);
+      channelData[i] = Math.sin(i * 0.1) * decay * 0.5;
+    }
+    
+    // Create a blob URL from the buffer
+    const arrayBuffer = channelData.buffer;
+    const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create the audio element
     const audio = new Audio(url);
-    
-    // Set up event listeners
-    audio.addEventListener('canplaythrough', () => {
-      sound.loaded = true;
-      sound.error = false;
-    });
-    
-    audio.addEventListener('error', (e) => {
-      console.error(`Error loading audio from ${url}:`, e);
-      sound.error = true;
-      sound.loaded = false;
-    });
-    
-    // Configure audio
     audio.volume = volume;
-    audio.loop = loop;
     sound.element = audio;
-    
-    // Start loading the audio
-    audio.load();
+    sound.loaded = true;
+    sound.error = false;
     
     return sound;
   } catch (error) {
-    console.error(`Error creating audio for ${url}:`, error);
+    console.error('Error creating cookie sound:', error);
+    sound.error = true;
+    return sound;
+  }
+};
+
+// Create synthesized audio for ticket collection
+const createTicketSound = (volume: number): Sound => {
+  const sound = createEmptySound(volume, false);
+  
+  try {
+    // Create an audio context
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.5, audioContext.sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    
+    // Generate a simple rising tone
+    for (let i = 0; i < audioBuffer.length; i++) {
+      // Sine wave with increasing frequency
+      const factor = 1.0 + (i / audioBuffer.length) * 3;
+      channelData[i] = Math.sin(i * 0.05 * factor) * 0.5;
+    }
+    
+    // Create a blob URL from the buffer
+    const arrayBuffer = channelData.buffer;
+    const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create the audio element
+    const audio = new Audio(url);
+    audio.volume = volume;
+    sound.element = audio;
+    sound.loaded = true;
+    sound.error = false;
+    
+    return sound;
+  } catch (error) {
+    console.error('Error creating ticket sound:', error);
+    sound.error = true;
+    return sound;
+  }
+};
+
+// Create synthesized background music
+const createBackgroundMusic = (volume: number): Sound => {
+  const sound = createEmptySound(volume, true);
+  
+  try {
+    // Create an audio context
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 4, audioContext.sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    
+    // Generate a simple chiptune-like melody
+    const notes = [261.63, 329.63, 392, 523.25]; // C4, E4, G4, C5
+    const noteDuration = audioContext.sampleRate * 0.2; // 0.2 seconds per note
+    
+    for (let i = 0; i < audioBuffer.length; i++) {
+      // Determine which note we're playing
+      const noteIndex = Math.floor(i / noteDuration) % notes.length;
+      const frequency = notes[noteIndex];
+      
+      // Calculate the sample value based on the frequency
+      const t = i / audioContext.sampleRate;
+      channelData[i] = Math.sin(2 * Math.PI * frequency * t) * 0.3;
+      
+      // Add a bit of "noise" for texture
+      if (i % 20000 < 5000) {
+        channelData[i] += (Math.random() * 2 - 1) * 0.05;
+      }
+    }
+    
+    // Create a blob URL from the buffer
+    const arrayBuffer = channelData.buffer;
+    const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create the audio element
+    const audio = new Audio(url);
+    audio.loop = true;
+    audio.volume = volume;
+    sound.element = audio;
+    sound.loaded = true;
+    sound.error = false;
+    
+    return sound;
+  } catch (error) {
+    console.error('Error creating background music:', error);
     sound.error = true;
     return sound;
   }
@@ -99,17 +188,15 @@ export const useAudio = create<AudioState>((set, get) => ({
   isPlaying: false,
   hasErrors: false,
   
-  // Initialize sounds - focus only on background music from Pixabay
+  // Initialize sounds with procedurally generated audio
   initSounds: () => {
     try {
-      console.log("Loading music from:", BACKGROUND_MUSIC_PATH);
+      console.log("Generating procedural audio...");
       
-      // Only load the main background music from Pixabay
-      const bgSound = createAudio(BACKGROUND_MUSIC_PATH, 0.3, true);
-      
-      // Use the same sound for collection sounds (but with different volumes)
-      const cookieSound = createAudio(BACKGROUND_MUSIC_PATH, 0.2, false);
-      const ticketSound = createAudio(BACKGROUND_MUSIC_PATH, 0.2, false);
+      // Create our sounds using Web Audio API
+      const bgSound = createBackgroundMusic(0.3);
+      const cookieSound = createCookieSound(0.5);
+      const ticketSound = createTicketSound(0.6);
       
       // Update the store with our sounds
       set(state => ({
@@ -121,19 +208,7 @@ export const useAudio = create<AudioState>((set, get) => ({
         }
       }));
       
-      // Check for errors after a short delay to let loading events fire
-      setTimeout(() => {
-        const { sounds } = get();
-        const hasAnyErrors = Object.values(sounds).some(sound => sound.error);
-        
-        if (hasAnyErrors) {
-          console.error("Audio loading errors detected");
-          set({ hasErrors: true });
-          toast.error("We are having an issue with our music library, but you can still enjoy the hunt!");
-        } else {
-          console.log("Audio loaded successfully");
-        }
-      }, 2000);
+      console.log("Audio generated successfully");
     } catch (error) {
       console.error("Error initializing sounds:", error);
       set({ hasErrors: true });
@@ -141,15 +216,62 @@ export const useAudio = create<AudioState>((set, get) => ({
     }
   },
   
-  // Set a custom sound by providing URL
+  // Set a custom sound by providing URL from file upload
   setCustomSound: (type, url) => {
     const { sounds } = get();
     const settings = soundSettings[type];
-    const newSound = createAudio(url, settings.volume, settings.loop);
     
-    set({ 
-      sounds: { ...sounds, [type]: newSound }
-    });
+    // Create a placeholder sound first
+    const sound = createEmptySound(settings.volume, settings.loop);
+    
+    try {
+      const audio = new Audio(url);
+      
+      // Set up event listeners
+      audio.addEventListener('canplaythrough', () => {
+        sound.loaded = true;
+        sound.error = false;
+      });
+      
+      audio.addEventListener('error', (e) => {
+        console.error(`Error loading custom audio from ${url}:`, e);
+        sound.error = true;
+        sound.loaded = false;
+        toast.error("Couldn't load your custom sound. Try a different file.");
+      });
+      
+      // Configure audio
+      audio.volume = settings.volume;
+      audio.loop = settings.loop;
+      sound.element = audio;
+      
+      // Start loading the audio
+      audio.load();
+      
+      // Update the store
+      set({ 
+        sounds: { ...sounds, [type]: sound }
+      });
+      
+      // If this is background music and it should be playing, start it
+      if (type === 'background' && !get().isMuted) {
+        setTimeout(() => {
+          if (sound.loaded && !sound.error) {
+            sound.element.play()
+              .then(() => {
+                set({ isPlaying: true });
+              })
+              .catch(error => {
+                console.warn("Custom background music play prevented:", error);
+              });
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error(`Error creating custom audio for ${url}:`, error);
+      sound.error = true;
+      toast.error("Failed to use your custom audio. Try a different file format.");
+    }
   },
   
   // Toggle mute state
