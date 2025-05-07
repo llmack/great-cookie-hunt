@@ -277,22 +277,46 @@ const SimpleMap = () => {
     }
   };
   
-  // Function to enable audio context
+  // Function to enable audio context and play music
   const enableAudio = () => {
-    if (!audioContext) return;
+    if (!audioContext) {
+      console.log('No audio context available');
+      return;
+    }
     
+    // Resume audio context if suspended
     if (audioContext.state === 'suspended') {
       audioContext.resume()
         .then(() => {
           console.log('AudioContext resumed successfully');
           setShowAudioButton(false);
           playButtonSound();
+          
+          // Find the music element and play it
+          const bgMusic = document.getElementById('background-music') as HTMLAudioElement;
+          if (bgMusic) {
+            console.log('Found background music element, playing...');
+            bgMusic.play()
+              .then(() => console.log('Background music started'))
+              .catch(e => console.error('Error playing background music:', e));
+          } else {
+            console.log('Background music element not found');
+          }
         })
         .catch(err => {
           console.error('Failed to resume AudioContext:', err);
         });
     } else {
+      console.log('AudioContext already running, playing music');
       setShowAudioButton(false);
+      
+      // Try to play music directly
+      const bgMusic = document.getElementById('background-music') as HTMLAudioElement;
+      if (bgMusic) {
+        bgMusic.play()
+          .then(() => console.log('Background music started'))
+          .catch(e => console.error('Error playing background music:', e));
+      }
     }
   };
   

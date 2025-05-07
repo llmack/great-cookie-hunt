@@ -1,32 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, PlayCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-export function AudioControls() {
+function AudioControls() {
+  // State for audio controls
   const [isMuted, setIsMuted] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(true);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [hasErrors, setHasErrors] = useState(false);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   
-  // Initialize audio context when component mounts
+  // Use ref for audio element
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Initialize audio context
   useEffect(() => {
     try {
-      // Try creating audio context, but it might be suspended until user interaction
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        const context = new AudioContextClass();
-        setAudioContext(context);
-        
-        // If already running, don't show play button
-        if (context.state === 'running') {
-          setShowPlayButton(false);
-        }
-        
-        console.log(`AudioContext created with state: ${context.state}`);
-      } else {
-        console.warn('AudioContext not supported in this browser');
-        setHasErrors(true);
+      // Create audio context
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      setAudioContext(ctx);
+      console.log('AudioContext created with state:', ctx.state);
+      
+      // If already running, no need for play button
+      if (ctx.state === 'running') {
+        setShowPlayButton(false);
       }
     } catch (e) {
       console.error('Error initializing audio context:', e);
@@ -34,99 +31,20 @@ export function AudioControls() {
     }
   }, []);
   
-  // Audio element for background music
-  const [musicElement, setMusicElement] = useState<HTMLAudioElement | null>(null);
-  
-  // Initialize the audio element for background music
+  // Handle mute toggle
   useEffect(() => {
-    // Create an audio element for the selected music
-    const audio = new Audio('/coming-of-age-chiptune-retro-80s-nintendo-pcm-fm-instrumental-151693.mp3');
-    audio.loop = true;
-    audio.volume = 0.3;
-    setMusicElement(audio);
-    
-    // Add event listeners
-    audio.addEventListener('error', (e) => {
-      console.error('Error loading music:', e);
-      setHasErrors(true);
-    });
-    
-    // Clean up
-    return () => {
-      audio.pause();
-      audio.src = '';
-    };
-  }, []);
-  
-  // Control music state using the audio element directly
-  useEffect(() => {
-    if (!musicElement) return;
+    if (!audioRef.current) return;
     
     if (isMuted) {
-      console.log('Muting music');
-      musicElement.pause();
+      console.log('Muting audio');
+      audioRef.current.pause();
     } else if (!showPlayButton) {
-      // Only play if user has clicked the play button
-      console.log('Playing music');
-      musicElement.play().catch(err => {
-        console.error('Error playing music:', err);
-      });
+      console.log('Unmuting audio, attempting to play');
+      playMusic();
     }
-  }, [isMuted, showPlayButton, musicElement]);
+  }, [isMuted, showPlayButton]);
   
-  // Play background music
-  const playBackgroundMusic = () => {
-    if (!musicElement || isMuted) return false;
-    
-    try {
-      // Play using the audio element
-      const playPromise = musicElement.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          console.log('Music playing successfully');
-          return true;
-        }).catch(e => {
-          console.error('Error playing music:', e);
-          return false;
-        });
-      }
-      
-      return true;
-    } catch (e) {
-      console.error('Error playing background music:', e);
-      return false;
-    }
-  };
-  
-  // Handle play button click
-  const handlePlayClick = () => {
-    if (!audioContext) return;
-    
-    // Resume audio context (needed for Chrome's autoplay policy)
-    if (audioContext.state === 'suspended') {
-      audioContext.resume().then(() => {
-        console.log('AudioContext resumed successfully');
-        const success = playBackgroundMusic();
-        if (success) {
-          setShowPlayButton(false);
-          // Play a success sound
-          playSuccessSound();
-        }
-      }).catch(err => {
-        console.error('Failed to resume AudioContext:', err);
-        toast.error('Could not start audio. Please try again.');
-      });
-    } else {
-      // Context is already running
-      const success = playBackgroundMusic();
-      if (success) {
-        setShowPlayButton(false);
-      }
-    }
-  };
-  
-  // Play a simple success sound
+  // Play a success sound
   const playSuccessSound = () => {
     if (!audioContext || isMuted) return;
     
@@ -151,56 +69,117 @@ export function AudioControls() {
     }
   };
   
-  // Handle mute toggle with explicit user interaction
+  // Handle play button click
+  const handlePlayClick = () => {
+    if (!audioContext) return;
+    
+    // Resume audio context (needed for Chrome's autoplay policy)
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().then(() => {
+        console.log('AudioContext resumed successfully');
+        
+        playMusic();
+        setShowPlayButton(false);
+        
+        // Play a success sound
+        playSuccessSound();
+      }).catch(err => {
+        console.error('Failed to resume AudioContext:', err);
+        toast.error('Could not start audio. Please try again.');
+      });
+    } else {
+      // Context is already running
+      playMusic();
+      setShowPlayButton(false);
+    }
+  };
+  
+  // Play music 
+  const playMusic = () => {
+    if (!audioRef.current || isMuted) return;
+    
+    try {
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Music playing successfully');
+          })
+          .catch(e => {
+            console.error('Error playing music:', e);
+            // Try again with user interaction
+            if (e.name === 'NotAllowedError') {
+              setShowPlayButton(true);
+            }
+          });
+      }
+    } catch (e) {
+      console.error('Error playing music:', e);
+    }
+  };
+  
+  // Handle mute toggle
   const handleMuteToggle = () => {
     console.log('Mute toggle clicked, current state:', isMuted);
     
-    if (audioContext && audioContext.state === 'suspended') {
+    // Resume audio context if needed
+    if (audioContext?.state === 'suspended') {
       audioContext.resume().catch(err => {
         console.error('Failed to resume AudioContext:', err);
       });
     }
     
-    // Toggle mute state first
-    const newMuteState = !isMuted;
-    setIsMuted(newMuteState);
+    // Toggle mute state
+    setIsMuted(prev => !prev);
     
-    // If we're unmuting and have music, play it
-    if (!newMuteState && !showPlayButton && musicElement) {
-      console.log('Unmuting, attempting to play music');
-      playBackgroundMusic();
-    }
-    
-    // Play a click sound when toggling (helps with permission too)
-    if (!isMuted && audioContext) {
-      try {
-        const osc = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.value = 500;
-        
-        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-        
-        osc.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        osc.start();
-        osc.stop(audioContext.currentTime + 0.1);
-      } catch (e) {
-        console.error('Error playing click sound:', e);
-      }
-    }
-    
-    console.log('Mute state after toggle:', newMuteState);
+    // Play a click sound
+    playClickSound();
   };
-
+  
+  // Play a click sound when toggling
+  const playClickSound = () => {
+    if (!audioContext || isMuted) return;
+    
+    try {
+      const osc = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = 500;
+      
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      osc.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      osc.start();
+      osc.stop(audioContext.currentTime + 0.1);
+      
+      console.log('Button sound played');
+    } catch (e) {
+      console.error('Error playing click sound:', e);
+    }
+  };
+  
   return (
     <>
-      {/* Main Audio Control UI */}
+      {/* Hidden Audio Element for Music */}
+      <audio
+        ref={audioRef}
+        src="/sounds/coming-of-age-chiptune-retro-80s-nintendo-pcm-fm-instrumental-151693.mp3"
+        loop
+        preload="auto"
+        style={{ display: 'none' }}
+        onError={(e) => {
+          console.error('Audio element error:', e);
+          setHasErrors(true);
+        }}
+      />
+      
+      {/* Mute/Unmute Button */}
       <div className="fixed bottom-20 right-4 flex flex-col gap-2 z-40">
-        {/* Mute/Unmute Button */}
         <Button 
           variant="secondary" 
           size="icon" 
@@ -213,7 +192,24 @@ export function AudioControls() {
         </Button>
       </div>
       
-      {/* We no longer show the dialog here - it's managed in PermissionsDialog.tsx */}
+      {/* Play Button Dialog - Shown only when needed */}
+      {showPlayButton && !hasErrors && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
+          <div className="bg-white p-5 rounded-lg shadow-lg text-center">
+            <h3 className="text-lg font-medium mb-2">Enable Game Audio</h3>
+            <p className="text-sm text-gray-600 mb-4">Click to enable chiptune music and sound effects</p>
+            <Button 
+              variant="default"
+              size="lg"
+              onClick={handlePlayClick}
+              className="bg-green-600 hover:bg-green-700 animate-pulse flex items-center gap-2"
+            >
+              <PlayCircle size={24} />
+              <span>Play Music</span>
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

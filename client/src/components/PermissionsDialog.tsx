@@ -83,64 +83,77 @@ const PermissionsDialog = ({
       <Card className="max-w-md w-full mx-4 bg-white shadow-lg">
         <CardHeader className="text-center pb-2">
           <h2 className="text-xl font-bold text-[#003DA5]">Welcome to GreatCookieHunt!</h2>
-          <p className="text-sm text-muted-foreground">Let's set up your experience</p>
+          <p className="text-sm text-muted-foreground">Philadelphia's Cookie Adventure Game</p>
         </CardHeader>
-        <CardContent className="space-y-6 pt-2 pb-4">
-          {/* Audio Permission */}
-          {audioState.showAudioButton && !audioEnabled && !audioState.hasAudioErrors && (
-            <div className="p-4 border rounded-lg bg-slate-50">
-              <div className="flex gap-3 items-center mb-3">
-                <div className="bg-green-100 p-2 rounded-full">
-                  <Volume2 className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Enable Game Audio</h3>
-                  <p className="text-sm text-muted-foreground">For the full experience with chiptune music</p>
-                </div>
-              </div>
-              <Button 
-                onClick={handleEnableAudio}
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
-              >
-                <PlayCircle className="mr-2 h-4 w-4" />
-                Enable Audio
-              </Button>
-            </div>
-          )}
+        <CardContent className="space-y-4 pt-2 pb-4">
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-100 mb-4">
+            <p className="text-sm text-center">Enable permissions for the full cookie-hunting experience!</p>
+          </div>
           
-          {/* Location Permission */}
-          {locationState.locationPermission !== 'granted' && !locationEnabled && (
+          <div className="flex flex-col gap-3">
+            {/* Combined Permission Buttons in a single container */}
             <div className="p-4 border rounded-lg bg-slate-50">
-              <div className="flex gap-3 items-center mb-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <MapPin className="h-5 w-5 text-blue-600" />
+              {/* Audio Permission - Only show if needed */}
+              {audioState.showAudioButton && !audioEnabled && !audioState.hasAudioErrors && (
+                <div className="mb-4">
+                  <div className="flex gap-3 items-center mb-2">
+                    <div className="bg-green-100 p-2 rounded-full">
+                      <Volume2 className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Game Audio</h3>
+                      <p className="text-xs text-muted-foreground">For chiptune music & sound effects</p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleEnableAudio}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <PlayCircle className="mr-2 h-4 w-4" />
+                    Enable Audio
+                  </Button>
                 </div>
-                <div>
-                  <h3 className="font-medium">Enable Location Services</h3>
-                  <p className="text-sm text-muted-foreground">To collect cookies as you explore Philadelphia</p>
+              )}
+              
+              {/* Location Permission - Only show if needed */}
+              {locationState.locationPermission !== 'granted' && !locationEnabled && (
+                <div className={audioState.showAudioButton && !audioEnabled ? "pt-3 border-t" : ""}>
+                  <div className="flex gap-3 items-center mb-2">
+                    <div className="bg-blue-100 p-2 rounded-full">
+                      <MapPin className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Location Services</h3>
+                      <p className="text-xs text-muted-foreground">Collect cookies as you explore the city</p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleEnableLocation}
+                    className="w-full bg-[#003DA5] hover:bg-blue-800 text-white"
+                  >
+                    <MapPin className="mr-2 h-4 w-4" />
+                    Enable Location
+                  </Button>
                 </div>
-              </div>
-              <Button 
-                onClick={handleEnableLocation}
-                className="w-full bg-[#003DA5] hover:bg-blue-800 text-white"
-              >
-                <MapPin className="mr-2 h-4 w-4" />
-                Enable Location
-              </Button>
+              )}
             </div>
-          )}
+          </div>
           
-          {/* Skip Option */}
-          <div className="text-center mt-4">
+          {/* Skip Option with clearer explanation */}
+          <div className="text-center mt-3">
+            <p className="text-xs text-muted-foreground mb-2">
+              Don't want to enable permissions? No problem!
+            </p>
             <Button 
-              variant="ghost" 
+              variant="outline" 
               onClick={() => {
                 setAudioEnabled(true);
                 setLocationEnabled(true);
+                toast.info("Using demo mode with simulated data");
               }}
-              className="text-sm"
+              className="text-sm w-full"
             >
-              Skip and use simulated data
+              Continue in Demo Mode
             </Button>
           </div>
         </CardContent>
