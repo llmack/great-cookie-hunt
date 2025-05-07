@@ -44,6 +44,31 @@ function AudioControls() {
     }
   }, [isMuted, showPlayButton]);
   
+  // Play music 
+  const playMusic = () => {
+    if (!audioRef.current || isMuted) return;
+    
+    try {
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Music playing successfully');
+          })
+          .catch(e => {
+            console.error('Error playing music:', e);
+            // Try again with user interaction
+            if (e.name === 'NotAllowedError') {
+              setShowPlayButton(true);
+            }
+          });
+      }
+    } catch (e) {
+      console.error('Error playing music:', e);
+    }
+  };
+  
   // Play a success sound
   const playSuccessSound = () => {
     if (!audioContext || isMuted) return;
@@ -94,49 +119,6 @@ function AudioControls() {
     }
   };
   
-  // Play music 
-  const playMusic = () => {
-    if (!audioRef.current || isMuted) return;
-    
-    try {
-      const playPromise = audioRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('Music playing successfully');
-          })
-          .catch(e => {
-            console.error('Error playing music:', e);
-            // Try again with user interaction
-            if (e.name === 'NotAllowedError') {
-              setShowPlayButton(true);
-            }
-          });
-      }
-    } catch (e) {
-      console.error('Error playing music:', e);
-    }
-  };
-  
-  // Handle mute toggle
-  const handleMuteToggle = () => {
-    console.log('Mute toggle clicked, current state:', isMuted);
-    
-    // Resume audio context if needed
-    if (audioContext?.state === 'suspended') {
-      audioContext.resume().catch(err => {
-        console.error('Failed to resume AudioContext:', err);
-      });
-    }
-    
-    // Toggle mute state
-    setIsMuted(prev => !prev);
-    
-    // Play a click sound
-    playClickSound();
-  };
-  
   // Play a click sound when toggling
   const playClickSound = () => {
     if (!audioContext || isMuted) return;
@@ -161,6 +143,24 @@ function AudioControls() {
     } catch (e) {
       console.error('Error playing click sound:', e);
     }
+  };
+  
+  // Handle mute toggle
+  const handleMuteToggle = () => {
+    console.log('Mute toggle clicked, current state:', isMuted);
+    
+    // Resume audio context if needed
+    if (audioContext?.state === 'suspended') {
+      audioContext.resume().catch(err => {
+        console.error('Failed to resume AudioContext:', err);
+      });
+    }
+    
+    // Toggle mute state
+    setIsMuted(prev => !prev);
+    
+    // Play a click sound
+    playClickSound();
   };
   
   return (
