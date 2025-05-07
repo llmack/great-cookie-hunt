@@ -71,11 +71,14 @@ const getAudioContext = () => {
 declare global {
   interface Window {
     _audioContext: AudioContext | null;
+    _audioPlayAttempted: boolean;
+    trackingInterval: NodeJS.Timeout | null;
   }
 }
 
-// Initialize the global audio context
+// Initialize the global audio context and tracking
 window._audioContext = null;
+window._audioPlayAttempted = false;
 
 // Create a placeholder sound object
 const createEmptySound = (volume: number, loop: boolean): Sound => ({
@@ -400,7 +403,7 @@ export const useAudio = create<AudioState>((set, get) => ({
     console.log(`Sound ${newMutedState ? 'muted' : 'unmuted'}`);
   },
   
-  // Play a specific sound
+  // Play a specific sound with modern browser compatibility
   playSound: (type) => {
     const { sounds, isMuted, hasErrors } = get();
     const sound = sounds[type];
@@ -409,6 +412,14 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (isMuted || hasErrors || !sound || sound.error) return;
     
     try {
+      // Make sure AudioContext is resumed (needed for Chrome/Safari)
+      const audioContext = getAudioContext();
+      if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().catch(err => {
+          console.warn('Failed to resume AudioContext:', err);
+        });
+      }
+      
       // For non-looping sounds, reset to beginning to ensure they play
       if (!sound.loop) {
         sound.element.currentTime = 0;
@@ -420,6 +431,30 @@ export const useAudio = create<AudioState>((set, get) => ({
         if (playPromise !== undefined) {
           playPromise.catch(error => {
             console.warn(`Could not play sound (${type}):`, error);
+            
+            // If we've never tried to play audio and this fails, let's
+            // set up a one-time click handler on the document
+            if (!window._audioPlayAttempted) {
+              window._audioPlayAttempted = true;
+              console.log('Setting up document click listener for audio autoplay');
+              
+              document.addEventListener('click', () => {
+                // Try to play the sound again
+                sound.element.play().catch(e => {
+                  console.error(`Still could not play ${type} sound after user click:`, e);
+                });
+                
+                // Also try to start background music
+                const bgSound = sounds.background;
+                if (bgSound && !bgSound.error) {
+                  bgSound.element.play().catch(() => {});
+                }
+              }, { once: true });
+              
+              toast.info('Click anywhere to enable sound effects', {
+                duration: 5000
+              });
+            }
           });
         }
       } else {
@@ -470,36 +505,71 @@ export const useAudio = create<AudioState>((set, get) => ({
     set({ isPlaying: false });
   },
   
-  // Start background music
+  // Start background music - uses user gesture to resume AudioContext
   startBackgroundMusic: () => {
     const { sounds, isMuted, isPlaying, hasErrors } = get();
     
     // Don't restart if already playing or if we have errors
     if (isPlaying || hasErrors) return;
     
+    // First make sure AudioContext is resumed since this is usually called from a user gesture
+    const audioContext = getAudioContext();
+    if (audioContext && audioContext.state === 'suspended') {
+      console.log('Resuming AudioContext on user gesture');
+      audioContext.resume().catch(err => {
+        console.warn('Failed to resume AudioContext:', err);
+      });
+    }
+    
     const bgSound = sounds.background;
     if (bgSound && !isMuted && !bgSound.error) {
       try {
-        // Only try to play if the browser allows it
-        bgSound.element.addEventListener('canplaythrough', () => {
-          bgSound.element.currentTime = 0;
-          bgSound.element.loop = true;
-          
-          const playPromise = bgSound.element.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                set({ isPlaying: true });
-              })
-              .catch(error => {
-                console.warn("Background music play prevented:", error);
-              });
-          }
-        }, { once: true });
+        console.log('Attempting to play background music');
         
-        // Try to load the audio if not already loading
-        if (bgSound.element.readyState === 0) {
-          bgSound.element.load();
+        // Make sure properties are set
+        bgSound.element.loop = true;
+        bgSound.element.volume = 0.3;
+        
+        // Reset playback position if it was playing before
+        if (bgSound.element.currentTime > 0) {
+          bgSound.element.currentTime = 0;
+        }
+        
+        // Direct play attempt - modern browsers need this from a user gesture
+        const playPromise = bgSound.element.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('Background music started successfully');
+              set({ isPlaying: true });
+            })
+            .catch(error => {
+              console.warn("Background music play prevented:", error);
+              
+              // If autoplay was prevented, set up a one-time click listener on the document
+              if (!window._audioPlayAttempted) {
+                window._audioPlayAttempted = true;
+                console.log('Setting up document click listener for audio autoplay');
+                
+                // This will trigger on the next user click anywhere on the page
+                document.addEventListener('click', () => {
+                  console.log('Document click detected, trying to play audio again');
+                  bgSound.element.play()
+                    .then(() => {
+                      console.log('Background music started on user click');
+                      set({ isPlaying: true });
+                    })
+                    .catch(e => {
+                      console.error('Still could not play audio after user click:', e);
+                      set({ hasErrors: true });
+                    });
+                }, { once: true });
+                
+                toast.info('Click anywhere to enable audio', {
+                  duration: 5000
+                });
+              }
+            });
         }
       } catch (error) {
         console.error("Error playing background music:", error);

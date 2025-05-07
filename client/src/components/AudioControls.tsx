@@ -43,32 +43,41 @@ export function AudioControls() {
   };
 
   return (
-    <div className="fixed bottom-20 right-4 flex flex-col gap-2 z-40">
-      {/* Play Button - Only shown before music starts */}
-      {showPlayButton && !isPlaying && !hasErrors && (
+    <>
+      {/* Main Audio Control UI */}
+      <div className="fixed bottom-20 right-4 flex flex-col gap-2 z-40">
+        {/* Mute/Unmute Button */}
         <Button 
           variant="secondary" 
           size="icon" 
-          onClick={handlePlayClick}
-          className="bg-white shadow-md animate-pulse"
-          title="Play Background Music"
+          onClick={handleMuteToggle}
+          className="bg-white shadow-md"
+          title={hasErrors ? "Audio unavailable" : (isMuted ? "Unmute" : "Mute")}
+          disabled={hasErrors}
         >
-          <PlayCircle size={20} className="text-green-600" />
+          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
         </Button>
-      )}
+      </div>
       
-      {/* Mute/Unmute Button */}
-      <Button 
-        variant="secondary" 
-        size="icon" 
-        onClick={handleMuteToggle}
-        className="bg-white shadow-md"
-        title={hasErrors ? "Audio unavailable" : (isMuted ? "Unmute" : "Mute")}
-        disabled={hasErrors}
-      >
-        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-      </Button>
-    </div>
+      {/* Prominent Play Button - Centered on screen for visibility */}
+      {showPlayButton && !isPlaying && !hasErrors && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
+          <div className="bg-white p-5 rounded-lg shadow-lg text-center">
+            <h3 className="text-lg font-medium mb-2">Enable Game Audio</h3>
+            <p className="text-sm text-gray-600 mb-4">Click to enable chiptune music and sound effects</p>
+            <Button 
+              variant="default"
+              size="lg"
+              onClick={handlePlayClick}
+              className="bg-green-600 hover:bg-green-700 animate-pulse flex items-center gap-2"
+            >
+              <PlayCircle size={24} />
+              <span>Play Music</span>
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
