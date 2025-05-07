@@ -5,6 +5,7 @@ import { Compass, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserStore } from '@/lib/stores/useUserStore';
 import AudioControls from './AudioControls';
+import PermissionsDialog from './PermissionsDialog';
 
 const DEFAULT_LOCATION = { lat: 39.9526, lng: -75.1652 }; // Philadelphia City Hall
 
@@ -14,10 +15,19 @@ interface Location {
 }
 
 const SimpleMap = () => {
+  // Game state
   const [isTracking, setIsTracking] = useState(false);
   const [steps, setSteps] = useState(0);
   const [distance, setDistance] = useState(0);
+  
+  // Permission states
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [showAudioButton, setShowAudioButton] = useState(true);
+  const [hasAudioErrors, setHasAudioErrors] = useState(false);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [permissionsReady, setPermissionsReady] = useState(false);
+  
+  // Store
   const { addSteps, addDistance, collectItem } = useUserStore();
   
   // Initialize permissions when component mounts
@@ -25,11 +35,17 @@ const SimpleMap = () => {
     // Try to create a silent audio context to help with future audio playback
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      setAudioContext(audioCtx);
+      
       if (audioCtx.state === 'suspended') {
         console.log('AudioContext suspended, will resume on user interaction');
+      } else if (audioCtx.state === 'running') {
+        // Audio context is already running, no need to show the audio button
+        setShowAudioButton(false);
       }
     } catch (e) {
       console.error('Error initializing audio context:', e);
+      setHasAudioErrors(true);
     }
     
     // Check location permission status
@@ -234,26 +250,56 @@ const SimpleMap = () => {
   // (This helps with audio permission too)
   const playButtonSound = () => {
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+      const ctx = audioContext || new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(e => console.error("Error resuming context:", e));
+      }
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       
       osc.type = 'sine';
       osc.frequency.value = 800;
       
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
       
       osc.connect(gain);
-      gain.connect(audioCtx.destination);
+      gain.connect(ctx.destination);
       
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.1);
+      osc.stop(ctx.currentTime + 0.1);
       
       console.log("Button sound played");
     } catch (e) {
       console.error("Button sound error:", e);
     }
+  };
+  
+  // Function to enable audio context
+  const enableAudio = () => {
+    if (!audioContext) return;
+    
+    if (audioContext.state === 'suspended') {
+      audioContext.resume()
+        .then(() => {
+          console.log('AudioContext resumed successfully');
+          setShowAudioButton(false);
+          playButtonSound();
+        })
+        .catch(err => {
+          console.error('Failed to resume AudioContext:', err);
+        });
+    } else {
+      setShowAudioButton(false);
+    }
+  };
+  
+  // Handle when all permissions are ready
+  const handlePermissionsReady = () => {
+    console.log("All permissions ready!");
+    setPermissionsReady(true);
   };
 
   return (
@@ -373,6 +419,20 @@ const SimpleMap = () => {
           </Card>
         </div>
       )}
+      
+      {/* Combined Permissions Dialog */}
+      <PermissionsDialog 
+        audioState={{
+          showAudioButton: showAudioButton,
+          hasAudioErrors: hasAudioErrors,
+          onEnableAudio: enableAudio
+        }}
+        locationState={{
+          locationPermission: locationPermission,
+          onRequestLocation: requestLocationPermission
+        }}
+        onAllGranted={handlePermissionsReady}
+      />
     </div>
   );
 };

@@ -34,45 +34,63 @@ export function AudioControls() {
     }
   }, []);
   
-  // Play a simple background music loop
+  // Audio element for background music
+  const [musicElement, setMusicElement] = useState<HTMLAudioElement | null>(null);
+  
+  // Initialize the audio element for background music
+  useEffect(() => {
+    // Create an audio element for the selected music
+    const audio = new Audio('/coming-of-age-chiptune-retro-80s-nintendo-pcm-fm-instrumental-151693.mp3');
+    audio.loop = true;
+    audio.volume = 0.3;
+    setMusicElement(audio);
+    
+    // Add event listeners
+    audio.addEventListener('error', (e) => {
+      console.error('Error loading music:', e);
+      setHasErrors(true);
+    });
+    
+    // Clean up
+    return () => {
+      audio.pause();
+      audio.src = '';
+    };
+  }, []);
+  
+  // Control music state using the audio element directly
+  useEffect(() => {
+    if (!musicElement) return;
+    
+    if (isMuted) {
+      console.log('Muting music');
+      musicElement.pause();
+    } else if (!showPlayButton) {
+      // Only play if user has clicked the play button
+      console.log('Playing music');
+      musicElement.play().catch(err => {
+        console.error('Error playing music:', err);
+      });
+    }
+  }, [isMuted, showPlayButton, musicElement]);
+  
+  // Play background music
   const playBackgroundMusic = () => {
-    if (!audioContext || isMuted) return;
+    if (!musicElement || isMuted) return false;
     
     try {
-      // Create oscillator for simple background music (looping notes)
-      const osc = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      // Play using the audio element
+      const playPromise = musicElement.play();
       
-      // Set up a simple melody
-      osc.type = 'sine';
-      osc.frequency.value = 440; // A4
-      
-      // Create a simple pattern by changing frequency over time
-      const now = audioContext.currentTime;
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.setValueAtTime(494, now + 0.5); // B4
-      osc.frequency.setValueAtTime(523, now + 1.0); // C5
-      osc.frequency.setValueAtTime(587, now + 1.5); // D5
-      osc.frequency.setValueAtTime(659, now + 2.0); // E5
-      osc.frequency.setValueAtTime(587, now + 2.5); // D5
-      osc.frequency.setValueAtTime(523, now + 3.0); // C5
-      osc.frequency.setValueAtTime(494, now + 3.5); // B4
-      
-      // Set volume
-      gainNode.gain.value = 0.1;
-      
-      // Connect nodes
-      osc.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      // Start and stop
-      osc.start();
-      osc.stop(now + 4.0);
-      
-      // Loop by scheduling the next call
-      setTimeout(() => {
-        if (!isMuted) playBackgroundMusic();
-      }, 4000);
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          console.log('Music playing successfully');
+          return true;
+        }).catch(e => {
+          console.error('Error playing music:', e);
+          return false;
+        });
+      }
       
       return true;
     } catch (e) {
@@ -135,18 +153,23 @@ export function AudioControls() {
   
   // Handle mute toggle with explicit user interaction
   const handleMuteToggle = () => {
+    console.log('Mute toggle clicked, current state:', isMuted);
+    
     if (audioContext && audioContext.state === 'suspended') {
       audioContext.resume().catch(err => {
         console.error('Failed to resume AudioContext:', err);
       });
     }
     
-    // If previously muted and now unmuting, try playing
-    if (isMuted && !showPlayButton) {
+    // Toggle mute state first
+    const newMuteState = !isMuted;
+    setIsMuted(newMuteState);
+    
+    // If we're unmuting and have music, play it
+    if (!newMuteState && !showPlayButton && musicElement) {
+      console.log('Unmuting, attempting to play music');
       playBackgroundMusic();
     }
-    
-    setIsMuted(!isMuted);
     
     // Play a click sound when toggling (helps with permission too)
     if (!isMuted && audioContext) {
@@ -169,6 +192,8 @@ export function AudioControls() {
         console.error('Error playing click sound:', e);
       }
     }
+    
+    console.log('Mute state after toggle:', newMuteState);
   };
 
   return (
@@ -188,24 +213,7 @@ export function AudioControls() {
         </Button>
       </div>
       
-      {/* Prominent Play Button - Centered on screen for visibility */}
-      {showPlayButton && !hasErrors && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
-          <div className="bg-white p-5 rounded-lg shadow-lg text-center">
-            <h3 className="text-lg font-medium mb-2">Enable Game Audio</h3>
-            <p className="text-sm text-gray-600 mb-4">Click to enable chiptune music and sound effects</p>
-            <Button 
-              variant="default"
-              size="lg"
-              onClick={handlePlayClick}
-              className="bg-green-600 hover:bg-green-700 animate-pulse flex items-center gap-2"
-            >
-              <PlayCircle size={24} />
-              <span>Play Music</span>
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* We no longer show the dialog here - it's managed in PermissionsDialog.tsx */}
     </>
   );
 }
