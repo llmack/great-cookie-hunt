@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Compass, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserStore } from '@/lib/stores/useUserStore';
-import { useAudio } from '@/lib/stores/useAudio';
 import AudioControls from './AudioControls';
 
 const DEFAULT_LOCATION = { lat: 39.9526, lng: -75.1652 }; // Philadelphia City Hall
@@ -20,12 +19,18 @@ const SimpleMap = () => {
   const [distance, setDistance] = useState(0);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const { addSteps, addDistance, collectItem } = useUserStore();
-  const { playSound, initSounds, startBackgroundMusic } = useAudio();
   
-  // Initialize audio when component mounts
+  // Initialize permissions when component mounts
   useEffect(() => {
-    // Initialize sounds but don't try to autoplay yet
-    initSounds();
+    // Try to create a silent audio context to help with future audio playback
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioCtx.state === 'suspended') {
+        console.log('AudioContext suspended, will resume on user interaction');
+      }
+    } catch (e) {
+      console.error('Error initializing audio context:', e);
+    }
     
     // Check location permission status
     if (navigator.permissions && navigator.permissions.query) {
@@ -42,7 +47,7 @@ const SimpleMap = () => {
           console.error('Error checking geolocation permission:', err);
         });
     }
-  }, [initSounds]);
+  }, []);
 
   // Request location permissions
   const requestLocationPermission = () => {
@@ -73,9 +78,6 @@ const SimpleMap = () => {
     if (isTracking) return;
     
     try {
-      // This user gesture is a good time to also start audio context and background music
-      startBackgroundMusic();
-      
       // Request location permission if needed
       if (locationPermission !== 'granted') {
         await requestLocationPermission();
@@ -104,13 +106,53 @@ const SimpleMap = () => {
           if (isCookie) {
             const value = Math.floor(Math.random() * 3) + 1;
             collectItem('cookie', value);
-            // Play cookie collection sound
-            playSound('cookieCollect');
+            // Play success sound
+            try {
+              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+              osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.2);
+              
+              gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+              
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              
+              osc.start();
+              osc.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {
+              console.error("Audio error:", e);
+            }
+            
             toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
           } else {
             collectItem('ticket', 1);
-            // Play ticket collection sound
-            playSound('ticketCollect');
+            // Play special sound for ticket
+            try {
+              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              
+              osc.type = 'square';
+              osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+              osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
+              
+              gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+              
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              
+              osc.start();
+              osc.stop(audioCtx.currentTime + 0.5);
+            } catch (e) {
+              console.error("Audio error:", e);
+            }
+            
             toast.success("You found a golden ticket!");
           }
         }
@@ -141,11 +183,9 @@ const SimpleMap = () => {
           if (isCookie) {
             const value = Math.floor(Math.random() * 3) + 1;
             collectItem('cookie', value);
-            playSound('cookieCollect');
             toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
           } else {
             collectItem('ticket', 1);
-            playSound('ticketCollect');
             toast.success("You found a golden ticket!");
           }
         }
@@ -166,6 +206,54 @@ const SimpleMap = () => {
     
     setIsTracking(false);
     toast.info("Stopped tracking your movement");
+    
+    // Play a sound on stop too
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.3);
+      
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    } catch (e) {
+      console.error("Audio error:", e);
+    }
+  };
+
+  // Helper function to create a simple beep on button press 
+  // (This helps with audio permission too)
+  const playButtonSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = 800;
+      
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+      
+      console.log("Button sound played");
+    } catch (e) {
+      console.error("Button sound error:", e);
+    }
   };
 
   return (
@@ -219,6 +307,7 @@ const SimpleMap = () => {
           variant="secondary" 
           size="icon" 
           className="bg-white shadow-md"
+          onClick={playButtonSound}
         >
           <Target size={20} />
         </Button>
@@ -226,6 +315,7 @@ const SimpleMap = () => {
           variant="secondary" 
           size="icon" 
           className="bg-white shadow-md"
+          onClick={playButtonSound}
         >
           <Compass size={20} />
         </Button>
@@ -258,7 +348,10 @@ const SimpleMap = () => {
         <div className="flex justify-center mx-4 mb-4">
           <Button 
             variant={isTracking ? "destructive" : "default"}
-            onClick={isTracking ? stopTracking : startTracking}
+            onClick={() => {
+              playButtonSound();
+              isTracking ? stopTracking() : startTracking();
+            }}
             className={`${isTracking ? "bg-red-500 hover:bg-red-600" : "bg-[#003DA5]"} 
               w-full max-w-xs py-6 text-white font-bold text-xl tracking-wide shadow-lg rounded-xl`}
           >
@@ -288,6 +381,8 @@ const SimpleMap = () => {
 declare global {
   interface Window {
     trackingInterval: NodeJS.Timeout | null;
+    AudioContext: typeof AudioContext;
+    webkitAudioContext: typeof AudioContext;
   }
 }
 
