@@ -42,6 +42,41 @@ const soundSettings: Record<SoundType, { volume: number, loop: boolean }> = {
 // Instead, we'll create audio procedurally with the Web Audio API
 const AUDIO_ENABLED = true;
 
+// Create or resume AudioContext to handle autoplay policy
+const getAudioContext = () => {
+  try {
+    // Get the AudioContext constructor
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    
+    // Create the context if it doesn't exist
+    if (!window._audioContext) {
+      window._audioContext = new AudioContextClass();
+      console.log('Created new AudioContext');
+    }
+    
+    // If the context is in suspended state, try to resume it
+    // This is needed for browsers with autoplay policy
+    if (window._audioContext.state === 'suspended') {
+      console.log('AudioContext suspended, attempting to resume on user interaction');
+    }
+    
+    return window._audioContext;
+  } catch (error) {
+    console.error('Error creating or accessing AudioContext:', error);
+    return null;
+  }
+};
+
+// Add AudioContext to window for reuse
+declare global {
+  interface Window {
+    _audioContext: AudioContext | null;
+  }
+}
+
+// Initialize the global audio context
+window._audioContext = null;
+
 // Create a placeholder sound object
 const createEmptySound = (volume: number, loop: boolean): Sound => ({
   element: new Audio(),
@@ -56,8 +91,12 @@ const createCookieSound = (volume: number): Sound => {
   const sound = createEmptySound(volume, false);
   
   try {
-    // Create an audio context
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Get or create audio context
+    const audioContext = getAudioContext();
+    if (!audioContext) {
+      throw new Error('Could not create AudioContext');
+    }
+    
     const audioBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.3, audioContext.sampleRate);
     const channelData = audioBuffer.getChannelData(0);
     
@@ -68,17 +107,29 @@ const createCookieSound = (volume: number): Sound => {
       channelData[i] = Math.sin(i * 0.1) * decay * 0.5;
     }
     
-    // Create a blob URL from the buffer
-    const arrayBuffer = channelData.buffer;
-    const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
+    // Export the buffer to a WAV-formatted array buffer
+    const offlineContext = new OfflineAudioContext(1, audioBuffer.length, audioContext.sampleRate);
+    const source = offlineContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineContext.destination);
+    source.start(0);
     
-    // Create the audio element
-    const audio = new Audio(url);
-    audio.volume = volume;
-    sound.element = audio;
-    sound.loaded = true;
-    sound.error = false;
+    // Render and create URL
+    offlineContext.startRendering().then(renderedBuffer => {
+      const audioData = renderedBuffer.getChannelData(0).buffer;
+      const blob = new Blob([audioData], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create the audio element
+      const audio = new Audio(url);
+      audio.volume = volume;
+      sound.element = audio;
+      sound.loaded = true;
+      sound.error = false;
+    }).catch(err => {
+      console.error('Error rendering cookie sound:', err);
+      sound.error = true;
+    });
     
     return sound;
   } catch (error) {
@@ -93,8 +144,12 @@ const createTicketSound = (volume: number): Sound => {
   const sound = createEmptySound(volume, false);
   
   try {
-    // Create an audio context
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Get or create audio context
+    const audioContext = getAudioContext();
+    if (!audioContext) {
+      throw new Error('Could not create AudioContext');
+    }
+    
     const audioBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.5, audioContext.sampleRate);
     const channelData = audioBuffer.getChannelData(0);
     
@@ -105,17 +160,29 @@ const createTicketSound = (volume: number): Sound => {
       channelData[i] = Math.sin(i * 0.05 * factor) * 0.5;
     }
     
-    // Create a blob URL from the buffer
-    const arrayBuffer = channelData.buffer;
-    const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
+    // Export the buffer to a WAV-formatted array buffer
+    const offlineContext = new OfflineAudioContext(1, audioBuffer.length, audioContext.sampleRate);
+    const source = offlineContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineContext.destination);
+    source.start(0);
     
-    // Create the audio element
-    const audio = new Audio(url);
-    audio.volume = volume;
-    sound.element = audio;
-    sound.loaded = true;
-    sound.error = false;
+    // Render and create URL
+    offlineContext.startRendering().then(renderedBuffer => {
+      const audioData = renderedBuffer.getChannelData(0).buffer;
+      const blob = new Blob([audioData], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create the audio element
+      const audio = new Audio(url);
+      audio.volume = volume;
+      sound.element = audio;
+      sound.loaded = true;
+      sound.error = false;
+    }).catch(err => {
+      console.error('Error rendering ticket sound:', err);
+      sound.error = true;
+    });
     
     return sound;
   } catch (error) {
@@ -130,42 +197,82 @@ const createBackgroundMusic = (volume: number): Sound => {
   const sound = createEmptySound(volume, true);
   
   try {
-    // Create an audio context
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Get or create audio context
+    const audioContext = getAudioContext();
+    if (!audioContext) {
+      throw new Error('Could not create AudioContext');
+    }
+    
     const audioBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 4, audioContext.sampleRate);
     const channelData = audioBuffer.getChannelData(0);
     
-    // Generate a simple chiptune-like melody
-    const notes = [261.63, 329.63, 392, 523.25]; // C4, E4, G4, C5
-    const noteDuration = audioContext.sampleRate * 0.2; // 0.2 seconds per note
+    // Generate a simple chiptune-like melody with Super Mario influence
+    // C major (Super Mario-like) scale: C, D, E, F, G, A, B
+    const notes = [
+      261.63, // C4
+      293.66, // D4
+      329.63, // E4 
+      349.23, // F4
+      392.00, // G4
+      440.00, // A4
+      493.88, // B4
+      523.25  // C5
+    ];
+    
+    const noteDuration = audioContext.sampleRate * 0.15; // 0.15 seconds per note
+    // Create a looping melody pattern (Super Mario-ish)
+    const pattern = [0, 2, 4, 0, 2, 7, 4, 2];
     
     for (let i = 0; i < audioBuffer.length; i++) {
       // Determine which note we're playing
-      const noteIndex = Math.floor(i / noteDuration) % notes.length;
+      const patternPosition = Math.floor(i / noteDuration) % pattern.length;
+      const noteIndex = pattern[patternPosition];
       const frequency = notes[noteIndex];
       
       // Calculate the sample value based on the frequency
       const t = i / audioContext.sampleRate;
-      channelData[i] = Math.sin(2 * Math.PI * frequency * t) * 0.3;
       
-      // Add a bit of "noise" for texture
-      if (i % 20000 < 5000) {
-        channelData[i] += (Math.random() * 2 - 1) * 0.05;
-      }
+      // Create a more complex waveform for a richer "chiptune" sound
+      let sample = 0;
+      // Fundamental frequency (square-ish wave with smoothing)
+      sample += 0.3 * Math.tanh(3 * Math.sin(2 * Math.PI * frequency * t));
+      // Add harmonics
+      sample += 0.1 * Math.sin(2 * Math.PI * frequency * 2 * t); // Octave
+      sample += 0.05 * Math.sin(2 * Math.PI * frequency * 3 * t); // Fifth above octave
+      
+      // Apply envelope
+      const noteProgress = (i % noteDuration) / noteDuration;
+      const envelope = noteProgress < 0.1 
+        ? noteProgress * 10 // Attack: quick ramp up
+        : (1 - noteProgress) * 0.5 + 0.5; // Decay/sustain
+        
+      channelData[i] = sample * envelope * 0.4; // Apply envelope and scale volume
     }
     
-    // Create a blob URL from the buffer
-    const arrayBuffer = channelData.buffer;
-    const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
-    const url = URL.createObjectURL(blob);
+    // Export the buffer to a WAV-formatted array buffer
+    const offlineContext = new OfflineAudioContext(1, audioBuffer.length, audioContext.sampleRate);
+    const source = offlineContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineContext.destination);
+    source.start(0);
     
-    // Create the audio element
-    const audio = new Audio(url);
-    audio.loop = true;
-    audio.volume = volume;
-    sound.element = audio;
-    sound.loaded = true;
-    sound.error = false;
+    // Render and create URL
+    offlineContext.startRendering().then(renderedBuffer => {
+      const audioData = renderedBuffer.getChannelData(0).buffer;
+      const blob = new Blob([audioData], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create the audio element
+      const audio = new Audio(url);
+      audio.loop = true;
+      audio.volume = volume;
+      sound.element = audio;
+      sound.loaded = true;
+      sound.error = false;
+    }).catch(err => {
+      console.error('Error rendering background music:', err);
+      sound.error = true;
+    });
     
     return sound;
   } catch (error) {

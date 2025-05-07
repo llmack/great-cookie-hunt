@@ -18,61 +18,141 @@ const SimpleMap = () => {
   const [isTracking, setIsTracking] = useState(false);
   const [steps, setSteps] = useState(0);
   const [distance, setDistance] = useState(0);
+  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const { addSteps, addDistance, collectItem } = useUserStore();
   const { playSound, initSounds, startBackgroundMusic } = useAudio();
   
   // Initialize audio when component mounts
   useEffect(() => {
+    // Initialize sounds but don't try to autoplay yet
     initSounds();
-    // Start background music with short delay to avoid autoplay restrictions
-    const timer = setTimeout(() => {
-      startBackgroundMusic();
-    }, 1000);
     
-    return () => clearTimeout(timer);
-  }, [initSounds, startBackgroundMusic]);
+    // Check location permission status
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(permissionStatus => {
+          setLocationPermission(permissionStatus.state as 'granted' | 'denied' | 'prompt');
+          
+          // Listen for permission changes
+          permissionStatus.onchange = () => {
+            setLocationPermission(permissionStatus.state as 'granted' | 'denied' | 'prompt');
+          };
+        })
+        .catch(err => {
+          console.error('Error checking geolocation permission:', err);
+        });
+    }
+  }, [initSounds]);
 
-  // Start tracking (simplified simulation)
-  const startTracking = () => {
+  // Request location permissions
+  const requestLocationPermission = () => {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLocationPermission('granted');
+            resolve(position);
+          },
+          (error) => {
+            setLocationPermission('denied');
+            toast.error("Location access denied. Using simulated location instead.");
+            reject(error);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        setLocationPermission('denied');
+        toast.error("Geolocation is not supported by this browser. Using simulated location.");
+        reject(new Error("Geolocation not supported"));
+      }
+    });
+  };
+
+  // Start tracking (with permission checks)
+  const startTracking = async () => {
     if (isTracking) return;
     
-    toast.success("Started tracking your movement!");
-    setIsTracking(true);
-    
-    // Simulate collecting items and walking
-    const interval = setInterval(() => {
-      // Simulate steps
-      const newSteps = Math.floor(Math.random() * 25) + 10;
-      const newDistance = newSteps * 0.75;
+    try {
+      // This user gesture is a good time to also start audio context and background music
+      startBackgroundMusic();
       
-      // Update UI
-      setSteps(s => s + newSteps);
-      setDistance(d => d + newDistance);
-      
-      // Update store
-      addSteps(newSteps);
-      addDistance(newDistance);
-      
-      // Simulate finding items occasionally
-      if (Math.random() > 0.7) {
-        const isCookie = Math.random() > 0.2;
-        if (isCookie) {
-          const value = Math.floor(Math.random() * 3) + 1;
-          collectItem('cookie', value);
-          // Play cookie collection sound
-          playSound('cookieCollect');
-          toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
-        } else {
-          collectItem('ticket', 1);
-          // Play ticket collection sound
-          playSound('ticketCollect');
-          toast.success("You found a golden ticket!");
-        }
+      // Request location permission if needed
+      if (locationPermission !== 'granted') {
+        await requestLocationPermission();
       }
-    }, 4000);
-    
-    // Store interval ID in window for cleanup
-    window.trackingInterval = interval;
+      
+      toast.success("Started tracking your movement!");
+      setIsTracking(true);
+      
+      // Simulate collecting items and walking
+      const interval = setInterval(() => {
+        // Simulate steps
+        const newSteps = Math.floor(Math.random() * 25) + 10;
+        const newDistance = newSteps * 0.75;
+        
+        // Update UI
+        setSteps(s => s + newSteps);
+        setDistance(d => d + newDistance);
+        
+        // Update store
+        addSteps(newSteps);
+        addDistance(newDistance);
+        
+        // Simulate finding items occasionally
+        if (Math.random() > 0.7) {
+          const isCookie = Math.random() > 0.2;
+          if (isCookie) {
+            const value = Math.floor(Math.random() * 3) + 1;
+            collectItem('cookie', value);
+            // Play cookie collection sound
+            playSound('cookieCollect');
+            toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
+          } else {
+            collectItem('ticket', 1);
+            // Play ticket collection sound
+            playSound('ticketCollect');
+            toast.success("You found a golden ticket!");
+          }
+        }
+      }, 4000);
+      
+      // Store interval ID in window for cleanup
+      window.trackingInterval = interval;
+    } catch (error) {
+      console.error("Error starting tracking:", error);
+      
+      // Still allow tracking with simulation even if permissions fail
+      toast.warning("Using simulated location for demonstration");
+      setIsTracking(true);
+      
+      // Start simulation anyway (just without real location)
+      const interval = setInterval(() => {
+        const newSteps = Math.floor(Math.random() * 25) + 10;
+        const newDistance = newSteps * 0.75;
+        
+        setSteps(s => s + newSteps);
+        setDistance(d => d + newDistance);
+        
+        addSteps(newSteps);
+        addDistance(newDistance);
+        
+        if (Math.random() > 0.7) {
+          const isCookie = Math.random() > 0.2;
+          if (isCookie) {
+            const value = Math.floor(Math.random() * 3) + 1;
+            collectItem('cookie', value);
+            playSound('cookieCollect');
+            toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
+          } else {
+            collectItem('ticket', 1);
+            playSound('ticketCollect');
+            toast.success("You found a golden ticket!");
+          }
+        }
+      }, 4000);
+      
+      window.trackingInterval = interval;
+    }
   };
 
   // Stop tracking
