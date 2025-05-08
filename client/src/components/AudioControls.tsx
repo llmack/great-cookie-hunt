@@ -38,6 +38,7 @@ function AudioControls() {
     if (isMuted) {
       console.log('Muting audio');
       audioRef.current.pause();
+      console.log('Sound muted');
     } else if (!showPlayButton) {
       console.log('Unmuting audio, attempting to play');
       playMusic();
@@ -121,7 +122,7 @@ function AudioControls() {
   
   // Play a click sound when toggling
   const playClickSound = () => {
-    if (!audioContext || isMuted) return;
+    if (!audioContext) return; // Remove the isMuted check to always play toggle sound
     
     try {
       const osc = audioContext.createOscillator();
@@ -156,11 +157,23 @@ function AudioControls() {
       });
     }
     
-    // Toggle mute state
-    setIsMuted(prev => !prev);
-    
-    // Play a click sound
+    // Play click sound before changing state
     playClickSound();
+    
+    // Toggle mute state 
+    const newMuteState = !isMuted;
+    console.log('Setting mute to:', newMuteState);
+    setIsMuted(newMuteState);
+    
+    // Update the audio element directly for immediate effect
+    if (audioRef.current) {
+      if (newMuteState) {
+        audioRef.current.pause();
+      } else if (!showPlayButton) {
+        audioRef.current.play()
+          .catch(e => console.error('Error playing on unmute:', e));
+      }
+    }
   };
   
   return (
