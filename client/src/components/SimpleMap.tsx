@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Compass, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUserStore } from '@/lib/stores/useUserStore';
+import { useAudio } from '@/lib/stores/useAudio';
 import AudioControls from './AudioControls';
 import PermissionsDialog from './PermissionsDialog';
 
@@ -98,6 +99,9 @@ const SimpleMap = () => {
       if (locationPermission !== 'granted') {
         await requestLocationPermission();
       }
+      
+      // Play background music
+      useAudio.getState().startBackgroundMusic();
       
       toast.success("Started tracking your movement!");
       setIsTracking(true);
@@ -219,6 +223,9 @@ const SimpleMap = () => {
       clearInterval(window.trackingInterval);
       window.trackingInterval = null;
     }
+    
+    // Stop background music
+    useAudio.getState().stopAllSounds();
     
     setIsTracking(false);
     toast.info("Stopped tracking your movement");
