@@ -386,21 +386,25 @@ export const useAudio = create<AudioState>((set, get) => ({
   
   // Toggle mute state
   toggleMute: () => {
-    const { isMuted } = get();
+    const { isMuted, sounds } = get();
     const newMutedState = !isMuted;
     
     // Update the muted state
     set({ isMuted: newMutedState });
     
     // Apply mute to all currently loaded sounds
-    const { sounds } = get();
     Object.values(sounds).forEach(sound => {
       if (sound?.element) {
-        sound.element.muted = newMutedState;
+        if (newMutedState) {
+          sound.element.pause();
+        } else if (sound.loop) {
+          // Only auto-restart looping sounds like background music
+          sound.element.play().catch(e => console.error('Error playing after unmute:', e));
+        }
       }
     });
     
-    console.log(`Sound ${newMutedState ? 'muted' : 'unmuted'}`);
+    console.log(`Audio ${newMutedState ? 'muted' : 'unmuted'}`);
   },
   
   // Play a specific sound with modern browser compatibility
