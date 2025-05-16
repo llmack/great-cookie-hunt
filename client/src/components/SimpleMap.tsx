@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useUserStore } from '@/lib/stores/useUserStore';
 import { useAudio } from '@/lib/stores/useAudio';
 import AudioControls from './AudioControls';
+import CookieMusic from './CookieMusic';
 import PermissionsDialog from './PermissionsDialog';
 
 const DEFAULT_LOCATION = { lat: 39.9526, lng: -75.1652 }; // Philadelphia City Hall
@@ -367,6 +368,9 @@ const SimpleMap = () => {
       
       {/* Audio Controls */}
       <AudioControls />
+      
+      {/* Background Music - plays only during tracking */}
+      <CookieMusic isPlaying={isTracking} />
       
       {/* Simplified Stats and Tracking Button for better visibility */}
       <div className="fixed bottom-0 left-0 right-0 z-30 pb-16 pt-4 bg-gradient-to-t from-white to-transparent">
