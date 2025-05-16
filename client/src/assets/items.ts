@@ -15,6 +15,27 @@ export const cookieTypes = [
     image: 'https://images.unsplash.com/photo-1458712197423-adcdc2a426ee'
   },
   {
+    id: 'double-chocolate',
+    name: 'Double Chocolate Cookie',
+    value: 2,
+    rarity: 'uncommon',
+    image: 'https://images.unsplash.com/photo-1549007994-cb92caebd54b'
+  },
+  {
+    id: 'sprinkle-sugar',
+    name: 'Sprinkle Sugar Cookie',
+    value: 2,
+    rarity: 'uncommon',
+    image: 'https://images.unsplash.com/photo-1558455806-316855f8e3ed'
+  },
+  {
+    id: 'peanut-butter',
+    name: 'Peanut Butter Cookie',
+    value: 2,
+    rarity: 'uncommon',
+    image: 'https://images.unsplash.com/photo-1590080874088-eec64895b423'
+  },
+  {
     id: 'oatmeal-raisin',
     name: 'Oatmeal Raisin Cookie',
     value: 2,
