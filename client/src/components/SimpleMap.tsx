@@ -91,7 +91,12 @@ const SimpleMap = () => {
     });
   };
 
-  // Start tracking (with permission checks)
+  // Current user location
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [watchId, setWatchId] = useState<number | null>(null);
+  const [lastLocation, setLastLocation] = useState<Location | null>(null);
+  
+  // Start tracking with real location services
   const startTracking = async () => {
     if (isTracking) return;
     
@@ -107,122 +112,226 @@ const SimpleMap = () => {
       toast.success("Started tracking your movement!");
       setIsTracking(true);
       
-      // Simulate collecting items and walking
-      const interval = setInterval(() => {
-        // Simulate steps
-        const newSteps = Math.floor(Math.random() * 25) + 10;
-        const newDistance = newSteps * 0.75;
+      // Start tracking real location
+      if (navigator.geolocation) {
+        // Get initial position
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const newLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            
+            setUserLocation(newLocation);
+            setLastLocation(newLocation);
+            
+            console.log("Initial location:", newLocation);
+            toast.success("Location detected! Now tracking your movements.");
+          },
+          (error) => {
+            console.error("Error getting initial position:", error);
+            toast.error("Could not get your location. Using simulated data instead.");
+            // Fall back to Philadelphia City Hall
+            setUserLocation(DEFAULT_LOCATION);
+            setLastLocation(DEFAULT_LOCATION);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
         
-        // Update UI
-        setSteps(s => s + newSteps);
-        setDistance(d => d + newDistance);
-        
-        // Update store
-        addSteps(newSteps);
-        addDistance(newDistance);
-        
-        // Simulate finding items occasionally
-        if (Math.random() > 0.7) {
-          const isCookie = Math.random() > 0.2;
-          if (isCookie) {
-            const value = Math.floor(Math.random() * 3) + 1;
-            collectItem('cookie', value);
-            // Play success sound
-            try {
-              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-              const osc = audioCtx.createOscillator();
-              const gain = audioCtx.createGain();
+        // Watch position changes
+        const id = navigator.geolocation.watchPosition(
+          (position) => {
+            const newLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            
+            // Calculate steps and distance if we have a last location
+            if (lastLocation) {
+              const distanceMoved = calculateDistance(
+                lastLocation.lat, lastLocation.lng,
+                newLocation.lat, newLocation.lng
+              );
               
-              osc.type = 'sine';
-              osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-              osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.2);
-              
-              gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-              
-              osc.connect(gain);
-              gain.connect(audioCtx.destination);
-              
-              osc.start();
-              osc.stop(audioCtx.currentTime + 0.4);
-            } catch (e) {
-              console.error("Audio error:", e);
+              // Only update if we've moved more than 5 meters
+              if (distanceMoved > 5) {
+                // Estimate steps (rough average of 0.75m per step)
+                const estimatedSteps = Math.floor(distanceMoved / 0.75);
+                
+                // Update UI
+                setSteps(s => s + estimatedSteps);
+                setDistance(d => d + distanceMoved);
+                
+                // Update store
+                addSteps(estimatedSteps);
+                addDistance(distanceMoved);
+                
+                // Save new location as last location
+                setLastLocation(newLocation);
+                console.log(`Moved ${distanceMoved.toFixed(2)}m (${estimatedSteps} steps)`);
+                
+                // Check for collectible items (chance based on distance moved)
+                const findChance = Math.min(distanceMoved / 50, 0.5); // Cap at 50%
+                if (Math.random() < findChance) {
+                  const isCookie = Math.random() > 0.2;
+                  if (isCookie) {
+                    const value = Math.floor(Math.random() * 3) + 1;
+                    collectItem('cookie', value);
+                    // Play cookie collection sound
+                    try {
+                      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                      const osc = audioCtx.createOscillator();
+                      const gain = audioCtx.createGain();
+                      
+                      osc.type = 'sine';
+                      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                      osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.2);
+                      
+                      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                      
+                      osc.connect(gain);
+                      gain.connect(audioCtx.destination);
+                      
+                      osc.start();
+                      osc.stop(audioCtx.currentTime + 0.4);
+                    } catch (e) {
+                      console.error("Audio error:", e);
+                    }
+                    
+                    toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
+                  } else {
+                    collectItem('ticket', 1);
+                    // Play ticket collection sound
+                    try {
+                      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                      const osc = audioCtx.createOscillator();
+                      const gain = audioCtx.createGain();
+                      
+                      osc.type = 'square';
+                      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
+                      
+                      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                      
+                      osc.connect(gain);
+                      gain.connect(audioCtx.destination);
+                      
+                      osc.start();
+                      osc.stop(audioCtx.currentTime + 0.5);
+                    } catch (e) {
+                      console.error("Audio error:", e);
+                    }
+                    
+                    toast.success("You found a golden ticket!");
+                  }
+                }
+              }
             }
             
-            toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
-          } else {
-            collectItem('ticket', 1);
-            // Play special sound for ticket
-            try {
-              const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-              const osc = audioCtx.createOscillator();
-              const gain = audioCtx.createGain();
-              
-              osc.type = 'square';
-              osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-              osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
-              
-              gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-              
-              osc.connect(gain);
-              gain.connect(audioCtx.destination);
-              
-              osc.start();
-              osc.stop(audioCtx.currentTime + 0.5);
-            } catch (e) {
-              console.error("Audio error:", e);
-            }
+            // Update current location
+            setUserLocation(newLocation);
+          },
+          (error) => {
+            console.error("Error watching position:", error);
+            toast.error("Lost location tracking. Using simulated data.");
             
-            toast.success("You found a golden ticket!");
-          }
-        }
-      }, 4000);
-      
-      // Store interval ID in window for cleanup
-      window.trackingInterval = interval;
+            // Fall back to simulation if tracking fails
+            startSimulation();
+          },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
+        
+        setWatchId(id);
+      } else {
+        // Geolocation not supported
+        toast.error("Geolocation is not supported by your browser. Using simulated data.");
+        startSimulation();
+      }
     } catch (error) {
       console.error("Error starting tracking:", error);
       
-      // Still allow tracking with simulation even if permissions fail
+      // Fall back to simulation if there's any error
       toast.warning("Using simulated location for demonstration");
-      setIsTracking(true);
-      
-      // Start simulation anyway (just without real location)
-      const interval = setInterval(() => {
-        const newSteps = Math.floor(Math.random() * 25) + 10;
-        const newDistance = newSteps * 0.75;
-        
-        setSteps(s => s + newSteps);
-        setDistance(d => d + newDistance);
-        
-        addSteps(newSteps);
-        addDistance(newDistance);
-        
-        if (Math.random() > 0.7) {
-          const isCookie = Math.random() > 0.2;
-          if (isCookie) {
-            const value = Math.floor(Math.random() * 3) + 1;
-            collectItem('cookie', value);
-            toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
-          } else {
-            collectItem('ticket', 1);
-            toast.success("You found a golden ticket!");
-          }
-        }
-      }, 4000);
-      
-      window.trackingInterval = interval;
+      startSimulation();
     }
+  };
+  
+  // Helper function to calculate distance between coordinates in meters (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    return R * c; // Distance in meters
+  };
+  
+  // Fallback simulation function
+  const startSimulation = () => {
+    // Start with Philadelphia City Hall
+    setUserLocation(DEFAULT_LOCATION);
+    setLastLocation(DEFAULT_LOCATION);
+    
+    // Start simulation
+    const interval = setInterval(() => {
+      const newSteps = Math.floor(Math.random() * 25) + 10;
+      const newDistance = newSteps * 0.75;
+      
+      setSteps(s => s + newSteps);
+      setDistance(d => d + newDistance);
+      
+      addSteps(newSteps);
+      addDistance(newDistance);
+      
+      // Simulate movement by slightly adjusting location
+      if (lastLocation) {
+        const newLocation = {
+          lat: lastLocation.lat + (Math.random() - 0.5) * 0.0005,
+          lng: lastLocation.lng + (Math.random() - 0.5) * 0.0005
+        };
+        setUserLocation(newLocation);
+        setLastLocation(newLocation);
+      }
+      
+      // Occasionally find items
+      if (Math.random() > 0.7) {
+        const isCookie = Math.random() > 0.2;
+        if (isCookie) {
+          const value = Math.floor(Math.random() * 3) + 1;
+          collectItem('cookie', value);
+          toast.success(`You found ${value} cookie${value > 1 ? 's' : ''}!`);
+        } else {
+          collectItem('ticket', 1);
+          toast.success("You found a golden ticket!");
+        }
+      }
+    }, 4000);
+    
+    window.trackingInterval = interval;
   };
 
   // Stop tracking
   const stopTracking = () => {
     if (!isTracking) return;
     
+    // Clear any tracking intervals
     if (window.trackingInterval) {
       clearInterval(window.trackingInterval);
       window.trackingInterval = null;
+    }
+    
+    // Stop geolocation watching
+    if (watchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchId);
+      setWatchId(null);
     }
     
     // Stop background music
