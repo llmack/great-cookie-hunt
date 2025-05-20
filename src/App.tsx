@@ -238,13 +238,37 @@ function App() {
       if (distance <= collectionRadius) {
         // Collect item!
         if (item.type === 'cookie') {
-          sounds.collectCookie.play();
+          // Play cookie collection sound using our procedural audio
+          if (!audioMuted && cookieSound.current) {
+            cookieSound.current.currentTime = 0;
+            try {
+              const playPromise = cookieSound.current.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(error => console.error("Cookie sound error:", error));
+              }
+            } catch (error) {
+              console.error("Cookie sound error:", error);
+            }
+          }
+          
           setStats(prev => ({
             ...prev,
             cookies: prev.cookies + item.value
           }));
         } else {
-          sounds.collectTicket.play();
+          // Play ticket collection sound using our procedural audio
+          if (!audioMuted && ticketSound.current) {
+            ticketSound.current.currentTime = 0;
+            try {
+              const playPromise = ticketSound.current.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(error => console.error("Ticket sound error:", error));
+              }
+            } catch (error) {
+              console.error("Ticket sound error:", error);
+            }
+          }
+          
           setStats(prev => ({
             ...prev,
             tickets: prev.tickets + item.value
@@ -260,18 +284,108 @@ function App() {
     setItems(updatedItems);
   };
   
+  // Audio elements for procedural sounds
+  const cookieSound = useRef<HTMLAudioElement | null>(null);
+  const ticketSound = useRef<HTMLAudioElement | null>(null);
+  const startSound = useRef<HTMLAudioElement | null>(null);
+  const stopSound = useRef<HTMLAudioElement | null>(null);
+  
+  // Initialize procedural sounds
+  useEffect(() => {
+    cookieSound.current = createCookieCollectSound();
+    ticketSound.current = createTicketCollectSound();
+    startSound.current = createStartTrackingSound();
+    stopSound.current = createStopTrackingSound();
+    
+    // Ensure audio is available on user interaction
+    const handleUserInteraction = () => {
+      // Create audio context to enable audio on mobile devices
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        try {
+          const ctx = new AudioContext();
+          // Small silent oscillator to unlock audio on iOS
+          const oscillator = ctx.createOscillator();
+          oscillator.frequency.value = 0;
+          oscillator.connect(ctx.destination);
+          oscillator.start(0);
+          oscillator.stop(0.1);
+          console.log("Audio context created and initialized on user interaction");
+        } catch (error) {
+          console.error("Failed to initialize audio context:", error);
+        }
+      }
+      
+      // Pre-load the background music
+      sounds.background.load();
+      sounds.backgroundAlt.load();
+      
+      // Remove event listener after first interaction
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+    
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction);
+    
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
+  
   // Toggle tracking
   const toggleTracking = () => {
     if (!tracking) {
       // Start tracking
       setTracking(true);
+      
+      // Play start sound effect
+      if (!audioMuted && startSound.current) {
+        startSound.current.currentTime = 0;
+        try {
+          const playPromise = startSound.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => console.error("Error playing start sound:", error));
+          }
+        } catch (error) {
+          console.error("Error playing start sound:", error);
+        }
+      }
+      
+      // Play background music (try both tracks if one fails)
       if (!audioMuted) {
-        sounds.background.play();
+        try {
+          sounds.background.play();
+        } catch (error) {
+          console.log("Trying alternative background music");
+          try {
+            sounds.backgroundAlt.play();
+          } catch (error) {
+            console.error("Could not play background music:", error);
+          }
+        }
       }
     } else {
       // Stop tracking
       setTracking(false);
+      
+      // Stop all background music
       sounds.background.stop();
+      sounds.backgroundAlt.stop();
+      
+      // Play stop sound effect
+      if (!audioMuted && stopSound.current) {
+        stopSound.current.currentTime = 0;
+        try {
+          const playPromise = stopSound.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => console.error("Error playing stop sound:", error));
+          }
+        } catch (error) {
+          console.error("Error playing stop sound:", error);
+        }
+      }
     }
   };
   
