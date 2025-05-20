@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Howl } from 'howler';
+import { 
+  createCookieCollectSound, 
+  createTicketCollectSound,
+  createStartTrackingSound,
+  createStopTrackingSound
+} from './utils/SoundGenerator';
 
 // Fix Leaflet icon issues
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -89,24 +95,49 @@ function App() {
   });
   const [audioMuted, setAudioMuted] = useState<boolean>(false);
   
-  // Sound effects
+  // Sound effects with our custom music
   const sounds = {
     background: new Howl({
-      src: ['https://assets.mixkit.co/sfx/preview/mixkit-game-level-music-689.mp3'],
+      src: ['/sounds/coming-of-age-chiptune-retro-80s-nintendo-pcm-fm-instrumental-151693.mp3'],
       loop: true,
-      volume: 0.5,
+      volume: 0.4,
       autoplay: false,
-      mute: audioMuted
+      mute: audioMuted,
+      html5: true, // Better for longer sounds
+      preload: true
+    }),
+    backgroundAlt: new Howl({
+      src: ['/sounds/un-jeu-dx27enfant-284529.mp3'],
+      loop: true,
+      volume: 0.4,
+      autoplay: false,
+      mute: audioMuted,
+      html5: true,
+      preload: true
     }),
     collectCookie: new Howl({
-      src: ['https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3'],
-      volume: 0.5,
-      mute: audioMuted
+      src: ['/sounds/cookie_collect.mp3'],
+      volume: 0.6,
+      mute: audioMuted,
+      preload: true
     }),
     collectTicket: new Howl({
-      src: ['https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3'],
+      src: ['/sounds/ticket_collect.mp3'],
+      volume: 0.7,
+      mute: audioMuted,
+      preload: true
+    }),
+    startTracking: new Howl({
+      src: ['/sounds/start_tracking.mp3'],
       volume: 0.5,
-      mute: audioMuted
+      mute: audioMuted,
+      preload: true
+    }),
+    stopTracking: new Howl({
+      src: ['/sounds/stop_tracking.mp3'],
+      volume: 0.5,
+      mute: audioMuted,
+      preload: true
     })
   };
   
