@@ -13,7 +13,25 @@ const GAME_CONFIG = {
   
   // Audio settings
   backgroundMusicVolume: 0.3,
-  soundEffectsVolume: 0.5
+  soundEffectsVolume: 0.5,
+  
+  // Cookie types - names correspond to the SVG files in public/cookies/
+  cookieTypes: [
+    'chocolate-chip', 
+    'sugar-cookie', 
+    'heart-cookie', 
+    'cinnamon-roll', 
+    'macaron'
+  ],
+  
+  // Avatar options - names correspond to the SVG files in public/avatars/
+  avatarOptions: [
+    {name: 'Cookie Monster', id: 'cookie-monster', iconSize: [40, 40]},
+    {name: 'Yoshi', id: 'yoshi', iconSize: [40, 40]}, 
+    {name: 'Pikachu', id: 'pikachu', iconSize: [40, 40]},
+    {name: 'Cooking Mama', id: 'cooking-mama', iconSize: [40, 40]},
+    {name: 'Rufus', id: 'rufus', iconSize: [40, 40]}
+  ]
 };
 
 // Game state
@@ -22,7 +40,7 @@ let gameState = {
   tracking: false,
   playerPosition: null, // [lat, lng]
   watchId: null,
-  items: [], // {id, type, position, value, collected}
+  items: [], // {id, type, position, value, collected, cookieType}
   stats: {
     steps: 0,
     distance: 0,
@@ -42,7 +60,9 @@ let gameState = {
     startTracking: null,
     stopTracking: null
   },
-  mapInitialZoom: 16
+  mapInitialZoom: 16,
+  selectedAvatar: null, // Will store the selected avatar id
+  isMovingMap: false // Flag to track if the user is manually moving the map
 };
 
 // DOM Elements
@@ -53,6 +73,8 @@ const elements = {
   trackButton: document.getElementById('trackButton'),
   audioControl: document.getElementById('audioControl'),
   sfxControl: document.getElementById('sfxControl'),
+  avatarControl: document.getElementById('avatarControl'),
+  stopTrackingButton: document.getElementById('stopTrackingButton'),
   toast: document.getElementById('toast'),
   loading: document.getElementById('loading'),
   permissionDialog: document.getElementById('permissionDialog'),
@@ -61,6 +83,9 @@ const elements = {
   zoomOut: document.getElementById('zoomOut'),
   recenter: document.getElementById('recenter'),
   backgroundMusic: document.getElementById('backgroundMusic'),
+  avatarModal: document.getElementById('avatarModal'),
+  avatarOptions: document.querySelectorAll('.avatar-option'),
+  closeAvatarModal: document.querySelector('.close-button'),
   stats: {
     steps: document.getElementById('steps'),
     distance: document.getElementById('distance'),
@@ -72,6 +97,14 @@ const elements = {
 // Initialize the game
 function initGame() {
   console.log('Initializing Cookie Hunt game');
+  
+  // Load saved avatar preference from localStorage
+  try {
+    gameState.selectedAvatar = localStorage.getItem('selectedAvatar') || GAME_CONFIG.avatarOptions[0].id;
+  } catch (e) {
+    // If localStorage fails, use default
+    gameState.selectedAvatar = GAME_CONFIG.avatarOptions[0].id;
+  }
   
   // Initialize map - default to a broader world view instead of just Philadelphia
   const defaultCoords = [40.0, -75.0]; // Still near Philadelphia but slightly zoomed out
@@ -93,18 +126,8 @@ function initGame() {
   // Add tile layer (map style)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(gameState.map);
   
-  // Create player marker (initially hidden)
-  const playerIcon = L.icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/1301/1301464.png', // Character icon
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -40]
-  });
-  
-  gameState.playerMarker = L.marker(defaultCoords, {
-    icon: playerIcon,
-    zIndexOffset: 1000
-  });
+  // Create player marker with selected avatar (initially hidden)
+  updatePlayerAvatar(gameState.selectedAvatar);
   
   // Initialize audio
   initAudio();
@@ -112,10 +135,47 @@ function initGame() {
   // Set up event listeners
   setupEventListeners();
   
+  // Set up map movement detection
+  gameState.map.on('dragstart', function() {
+    gameState.isMovingMap = true;
+  });
+  
   gameState.initialized = true;
   
   // Hide loading screen once everything is ready
   hideLoading();
+}
+
+// Update player avatar based on selection
+function updatePlayerAvatar(avatarId) {
+  // Find the avatar configuration
+  const avatarConfig = GAME_CONFIG.avatarOptions.find(avatar => avatar.id === avatarId) || GAME_CONFIG.avatarOptions[0];
+  
+  // Create icon
+  const playerIcon = L.icon({
+    iconUrl: `avatars/${avatarConfig.id}.svg`,
+    iconSize: avatarConfig.iconSize,
+    iconAnchor: [avatarConfig.iconSize[0]/2, avatarConfig.iconSize[1]],
+    popupAnchor: [0, -avatarConfig.iconSize[1]]
+  });
+  
+  // Store selected avatar
+  gameState.selectedAvatar = avatarConfig.id;
+  try {
+    localStorage.setItem('selectedAvatar', avatarConfig.id);
+  } catch (e) {
+    console.warn('Could not save avatar to localStorage', e);
+  }
+  
+  // If player marker exists, update it; otherwise create new
+  if (gameState.playerMarker) {
+    gameState.playerMarker.setIcon(playerIcon);
+  } else {
+    gameState.playerMarker = L.marker(gameState.map.getCenter(), {
+      icon: playerIcon,
+      zIndexOffset: 1000
+    });
+  }
 }
 
 // Initialize audio elements
@@ -158,9 +218,29 @@ function setupEventListeners() {
   // Track button
   elements.trackButton.addEventListener('click', toggleTracking);
   
+  // Stop tracking button (just stops tracking but keeps the map and cookies visible)
+  elements.stopTrackingButton.addEventListener('click', stopTrackingOnly);
+  
   // Audio controls
   elements.audioControl.addEventListener('click', toggleMusic);
   elements.sfxControl.addEventListener('click', toggleSoundEffects);
+  
+  // Avatar selector
+  elements.avatarControl.addEventListener('click', openAvatarModal);
+  elements.closeAvatarModal.addEventListener('click', closeAvatarModal);
+  
+  // Avatar options
+  elements.avatarOptions.forEach(option => {
+    option.addEventListener('click', function() {
+      const avatarId = this.getAttribute('data-avatar');
+      selectAvatar(avatarId);
+    });
+    
+    // Mark the currently selected avatar
+    if (option.getAttribute('data-avatar') === gameState.selectedAvatar) {
+      option.classList.add('selected');
+    }
+  });
   
   // Map controls
   elements.zoomIn.addEventListener('click', () => gameState.map.zoomIn());
@@ -169,6 +249,65 @@ function setupEventListeners() {
   
   // Permission request
   elements.requestPermission.addEventListener('click', requestLocationPermission);
+}
+
+// Open avatar selection modal
+function openAvatarModal() {
+  elements.avatarModal.classList.add('show');
+}
+
+// Close avatar selection modal
+function closeAvatarModal() {
+  elements.avatarModal.classList.remove('show');
+}
+
+// Select avatar and update display
+function selectAvatar(avatarId) {
+  // Remove selected class from all options
+  elements.avatarOptions.forEach(option => {
+    option.classList.remove('selected');
+    
+    // Add selected class to the chosen avatar
+    if (option.getAttribute('data-avatar') === avatarId) {
+      option.classList.add('selected');
+    }
+  });
+  
+  // Update the player marker with new avatar
+  updatePlayerAvatar(avatarId);
+  
+  // Show confirmation
+  showToast(`Avatar changed to ${GAME_CONFIG.avatarOptions.find(a => a.id === avatarId).name}`);
+  
+  // Close the modal
+  closeAvatarModal();
+}
+
+// Just stop tracking without removing markers (keeps the map view and cookies visible)
+function stopTrackingOnly() {
+  if (!gameState.tracking) {
+    showToast('Tracking is already stopped');
+    return;
+  }
+  
+  if (gameState.watchId !== null) {
+    navigator.geolocation.clearWatch(gameState.watchId);
+    gameState.watchId = null;
+  }
+  
+  // Update game state and UI
+  gameState.tracking = false;
+  elements.trackButton.textContent = 'START TRACKING';
+  elements.trackButton.classList.remove('tracking');
+  
+  // Play sound and stop music
+  playSound('stopTracking');
+  
+  // Stop background music
+  gameState.backgroundMusic.pause();
+  gameState.backgroundMusic.currentTime = 0;
+  
+  showToast('Tracking stopped, but you can still explore the map!');
 }
 
 // Start the game (from welcome screen)
@@ -368,7 +507,7 @@ function updatePlayerPosition(position) {
   gameState.playerMarker.setLatLng(newPosition);
   
   // Only center map if user hasn't manually moved it
-  if (gameState.map.autoFollowing !== false) {
+  if (!gameState.isMovingMap) {
     gameState.map.setView(newPosition);
   }
   
@@ -406,10 +545,18 @@ function generateItems() {
     // Determine item type (cookie or ticket)
     const type = Math.random() < GAME_CONFIG.cookieProbability ? 'cookie' : 'ticket';
     
+    // If it's a cookie, randomly select a cookie type
+    let cookieType = null;
+    if (type === 'cookie') {
+      const randomTypeIndex = Math.floor(Math.random() * GAME_CONFIG.cookieTypes.length);
+      cookieType = GAME_CONFIG.cookieTypes[randomTypeIndex];
+    }
+    
     // Create item
     const item = {
       id: generateId(),
       type: type,
+      cookieType: cookieType,
       position: randomPosition,
       value: type === 'cookie' ? GAME_CONFIG.cookieValue : GAME_CONFIG.ticketValue,
       collected: false
@@ -427,19 +574,64 @@ function generateItems() {
 
 // Add marker for an item on the map
 function addItemMarker(item) {
+  // Determine icon URL based on item type and cookie variety
+  let iconUrl = '';
+  let iconSize = [25, 25]; // Smaller size for cookies
+  let popupTitle = '';
+  
+  if (item.type === 'cookie') {
+    // Use our custom cookie SVGs
+    iconUrl = `cookies/${item.cookieType}.svg`;
+    
+    // Set popup title based on cookie type
+    switch(item.cookieType) {
+      case 'chocolate-chip':
+        popupTitle = 'Chocolate Chip Cookie';
+        break;
+      case 'sugar-cookie':
+        popupTitle = 'Sugar Cookie';
+        break;
+      case 'heart-cookie':
+        popupTitle = 'Heart Cookie';
+        break;
+      case 'cinnamon-roll':
+        popupTitle = 'Cinnamon Roll';
+        break;
+      case 'macaron':
+        popupTitle = 'Macaron';
+        break;
+      default:
+        popupTitle = 'Tasty Cookie';
+    }
+  } else {
+    // For tickets, use the default ticket icon
+    iconUrl = 'https://cdn-icons-png.flaticon.com/512/3330/3330300.png';
+    iconSize = [30, 30]; // Larger size for tickets
+    popupTitle = 'Golden Ticket';
+  }
+  
   const icon = L.icon({
-    iconUrl: item.type === 'cookie' 
-      ? 'https://cdn-icons-png.flaticon.com/512/541/541732.png'  // Cookie icon
-      : 'https://cdn-icons-png.flaticon.com/512/3330/3330300.png', // Ticket icon
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -15]
+    iconUrl: iconUrl,
+    iconSize: iconSize,
+    iconAnchor: [iconSize[0]/2, iconSize[1]/2],
+    popupAnchor: [0, -iconSize[1]/2]
   });
   
   const marker = L.marker(item.position, { icon }).addTo(gameState.map);
   
+  // Create a more attractive popup
+  const popupContent = `
+    <div class="cookie-popup">
+      <img src="${iconUrl}" alt="${popupTitle}">
+      <div>
+        <strong>${popupTitle}</strong>
+        <div>Tap to collect!</div>
+      </div>
+    </div>
+  `;
+  
   // Add a popup with item information
-  marker.bindPopup(item.type === 'cookie' ? 'Tasty Cookie' : 'Golden Ticket');
+  marker.bindPopup(popupContent);
   
   // Store marker reference
   gameState.itemMarkers.push({ id: item.id, marker });
