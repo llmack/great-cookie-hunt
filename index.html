@@ -293,6 +293,7 @@
   <div class="controls-top">
     <button id="audioControl" class="control-button">🔊</button>
     <button id="sfxControl" class="control-button">🔔</button>
+    <button id="avatarControl" class="control-button">👤</button>
   </div>
   
   <!-- Map controls -->
@@ -300,6 +301,37 @@
     <button id="zoomIn" class="control-button">+</button>
     <button id="zoomOut" class="control-button">-</button>
     <button id="recenter" class="control-button">📍</button>
+    <button id="stopTrackingButton" class="control-button">⏹️</button>
+  </div>
+  
+  <!-- Avatar selection modal -->
+  <div id="avatarModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button">&times;</span>
+      <h2>Select Your Avatar</h2>
+      <div class="avatar-grid">
+        <div class="avatar-option" data-avatar="cookie-monster">
+          <img src="avatars/cookie-monster.svg" alt="Cookie Monster">
+          <span>Cookie Monster</span>
+        </div>
+        <div class="avatar-option" data-avatar="yoshi">
+          <img src="avatars/yoshi.svg" alt="Yoshi">
+          <span>Yoshi</span>
+        </div>
+        <div class="avatar-option" data-avatar="pikachu">
+          <img src="avatars/pikachu.svg" alt="Pikachu">
+          <span>Pikachu</span>
+        </div>
+        <div class="avatar-option" data-avatar="cooking-mama">
+          <img src="avatars/cooking-mama.svg" alt="Cooking Mama">
+          <span>Cooking Mama</span>
+        </div>
+        <div class="avatar-option" data-avatar="rufus">
+          <img src="avatars/rufus.svg" alt="Rufus">
+          <span>Rufus</span>
+        </div>
+      </div>
+    </div>
   </div>
   
   <!-- Toast notification -->

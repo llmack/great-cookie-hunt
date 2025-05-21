@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Face -->
+  <circle cx="50" cy="50" r="40" fill="#ffe0b2" />
+  
+  <!-- Hair -->
+  <path d="M20,30 C10,10 40,0 50,5 C60,0 90,10 80,30 C90,60 75,80 50,80 C25,80 10,60 20,30 Z" fill="#4e342e" />
+  <path d="M30,40 C35,35 35,30 30,25" fill="none" stroke="#4e342e" stroke-width="3" />
+  <path d="M70,40 C65,35 65,30 70,25" fill="none" stroke="#4e342e" stroke-width="3" />
+  
+  <!-- Eyes -->
+  <ellipse cx="35" cy="45" rx="5" ry="7" fill="black" />
+  <ellipse cx="65" cy="45" rx="5" ry="7" fill="black" />
+  <path d="M33,40 L37,40" fill="none" stroke="white" stroke-width="1" />
+  <path d="M63,40 L67,40" fill="none" stroke="white" stroke-width="1" />
+  
+  <!-- Blush -->
+  <circle cx="25" cy="50" r="5" fill="#f8bbd0" />
+  <circle cx="75" cy="50" r="5" fill="#f8bbd0" />
+  
+  <!-- Smile -->
+  <path d="M40,60 C45,68 55,68 60,60" fill="none" stroke="black" stroke-width="2" />
+  
+  <!-- Chef hat -->
+  <ellipse cx="50" cy="15" rx="25" ry="10" fill="white" />
+  <rect x="35" y="5" width="30" height="10" fill="white" />
+</svg>
