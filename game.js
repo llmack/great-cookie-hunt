@@ -1,9 +1,9 @@
 // Game configuration
 const GAME_CONFIG = {
   // Item generation settings
-  spawnRadius: 100, // meters
-  minItems: 5,
-  maxItems: 10,
+  spawnRadius: 150, // meters
+  minItems: 8,
+  maxItems: 15,
   cookieProbability: 0.7, // 70% chance of spawning a cookie (vs ticket)
   cookieValue: 1,
   ticketValue: 1,
@@ -18,6 +18,7 @@ const GAME_CONFIG = {
 
 // Game state
 let gameState = {
+  initialized: false,
   tracking: false,
   playerPosition: null, // [lat, lng]
   watchId: null,
@@ -33,24 +34,33 @@ let gameState = {
   playerMarker: null,
   itemMarkers: [],
   audioEnabled: true,
+  sfxEnabled: true,
   backgroundMusic: null,
   soundEffects: {
     cookieCollect: null,
     ticketCollect: null,
     startTracking: null,
     stopTracking: null
-  }
+  },
+  mapInitialZoom: 16
 };
 
 // DOM Elements
 const elements = {
+  welcomeOverlay: document.getElementById('welcomeOverlay'),
+  startButton: document.getElementById('startButton'),
   map: document.getElementById('map'),
   trackButton: document.getElementById('trackButton'),
   audioControl: document.getElementById('audioControl'),
+  sfxControl: document.getElementById('sfxControl'),
   toast: document.getElementById('toast'),
   loading: document.getElementById('loading'),
   permissionDialog: document.getElementById('permissionDialog'),
   requestPermission: document.getElementById('requestPermission'),
+  zoomIn: document.getElementById('zoomIn'),
+  zoomOut: document.getElementById('zoomOut'),
+  recenter: document.getElementById('recenter'),
+  backgroundMusic: document.getElementById('backgroundMusic'),
   stats: {
     steps: document.getElementById('steps'),
     distance: document.getElementById('distance'),
@@ -61,29 +71,38 @@ const elements = {
 
 // Initialize the game
 function initGame() {
-  // Initialize map centered on Philadelphia (default location)
-  const philadelphiaCoords = [39.9526, -75.1652];
+  console.log('Initializing Cookie Hunt game');
+  
+  // Initialize map - default to a broader world view instead of just Philadelphia
+  const defaultCoords = [40.0, -75.0]; // Still near Philadelphia but slightly zoomed out
   
   gameState.map = L.map('map', {
-    center: philadelphiaCoords,
-    zoom: 16,
+    center: defaultCoords,
+    zoom: gameState.mapInitialZoom,
     zoomControl: false,
-    attributionControl: false
+    minZoom: 3,
+    maxZoom: 19,
+    attributionControl: false,
+    doubleClickZoom: true
   });
+  
+  // Enable touch gestures for mobile
+  gameState.map.dragging.enable();
+  gameState.map.touchZoom.enable();
   
   // Add tile layer (map style)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(gameState.map);
   
   // Create player marker (initially hidden)
-  const cookieIcon = L.icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/541/541732.png',
+  const playerIcon = L.icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/1301/1301464.png', // Character icon
     iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20]
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40]
   });
   
-  gameState.playerMarker = L.marker(philadelphiaCoords, {
-    icon: cookieIcon,
+  gameState.playerMarker = L.marker(defaultCoords, {
+    icon: playerIcon,
     zIndexOffset: 1000
   });
   
@@ -93,15 +112,18 @@ function initGame() {
   // Set up event listeners
   setupEventListeners();
   
-  // Check location permission
-  checkLocationPermission();
+  gameState.initialized = true;
+  
+  // Hide loading screen once everything is ready
+  hideLoading();
 }
 
 // Initialize audio elements
 function initAudio() {
-  // Background music
-  gameState.backgroundMusic = new Audio('https://cdn.pixabay.com/download/audio/2022/10/29/audio_8b320986f0.mp3?filename=coming-of-age-chiptune-retro-80s-nintendo-pcm-fm-instrumental-151693.mp3');
-  gameState.backgroundMusic.loop = true;
+  console.log('Initializing audio');
+  
+  // Use the HTML audio element for background music
+  gameState.backgroundMusic = elements.backgroundMusic;
   gameState.backgroundMusic.volume = GAME_CONFIG.backgroundMusicVolume;
   
   // Sound effects
@@ -110,31 +132,71 @@ function initAudio() {
   gameState.soundEffects.startTracking = new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_febc508a21.mp3?filename=interface-124464.mp3');
   gameState.soundEffects.stopTracking = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_9aac35913b.mp3?filename=negative_beeps-6008.mp3');
   
-  // Set volumes
+  // Set volumes for sound effects
   Object.values(gameState.soundEffects).forEach(sound => {
     sound.volume = GAME_CONFIG.soundEffectsVolume;
+  });
+  
+  // Preload all audio to avoid delays
+  gameState.backgroundMusic.load();
+  Object.values(gameState.soundEffects).forEach(sound => {
+    try {
+      sound.load();
+    } catch (error) {
+      console.warn('Error preloading sound:', error);
+    }
   });
 }
 
 // Set up event listeners
 function setupEventListeners() {
+  console.log('Setting up event listeners');
+  
+  // Welcome screen start button
+  elements.startButton.addEventListener('click', startGame);
+  
   // Track button
   elements.trackButton.addEventListener('click', toggleTracking);
   
-  // Audio control
-  elements.audioControl.addEventListener('click', toggleAudio);
+  // Audio controls
+  elements.audioControl.addEventListener('click', toggleMusic);
+  elements.sfxControl.addEventListener('click', toggleSoundEffects);
+  
+  // Map controls
+  elements.zoomIn.addEventListener('click', () => gameState.map.zoomIn());
+  elements.zoomOut.addEventListener('click', () => gameState.map.zoomOut());
+  elements.recenter.addEventListener('click', centerMapOnPlayer);
   
   // Permission request
   elements.requestPermission.addEventListener('click', requestLocationPermission);
 }
 
+// Start the game (from welcome screen)
+function startGame() {
+  console.log('Starting game');
+  
+  // Hide welcome overlay with a fade-out effect
+  elements.welcomeOverlay.style.opacity = '0';
+  setTimeout(() => {
+    elements.welcomeOverlay.style.display = 'none';
+  }, 500);
+  
+  // Check location permission and start tracking automatically
+  showLoading();
+  checkLocationPermission();
+}
+
 // Check if location permission is granted
 function checkLocationPermission() {
+  console.log('Checking location permission');
+  
   if (navigator.permissions && navigator.permissions.query) {
     navigator.permissions.query({ name: 'geolocation' })
       .then(permissionStatus => {
         if (permissionStatus.state === 'granted') {
           hideLoading();
+          // Auto start tracking if permission is already granted
+          startTracking();
         } else if (permissionStatus.state === 'prompt') {
           hideLoading();
           showPermissionDialog();
@@ -146,11 +208,20 @@ function checkLocationPermission() {
   } else {
     // Fallback for browsers that don't support the Permissions API
     hideLoading();
+    
+    // Try to get the location anyway
+    navigator.geolocation.getCurrentPosition(
+      () => startTracking(),
+      () => showPermissionDialog(),
+      { timeout: 5000 }
+    );
   }
 }
 
 // Request location permission
 function requestLocationPermission() {
+  console.log('Requesting location permission');
+  
   hidePermissionDialog();
   showLoading();
   
@@ -161,16 +232,20 @@ function requestLocationPermission() {
       
       // Center map on user's location
       const { latitude, longitude } = position.coords;
-      gameState.map.setView([latitude, longitude], 16);
+      gameState.map.setView([latitude, longitude], gameState.mapInitialZoom);
       
       // Show player marker
       gameState.playerMarker.setLatLng([latitude, longitude]).addTo(gameState.map);
+      
+      // Auto start tracking
+      startTracking();
     },
     error => {
       hideLoading();
       showPermissionDialog();
       console.error('Error getting location:', error);
-    }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
@@ -185,6 +260,10 @@ function toggleTracking() {
 
 // Start location tracking
 function startTracking() {
+  console.log('Starting location tracking');
+  
+  if (gameState.tracking) return; // Already tracking
+  
   showLoading();
   
   navigator.geolocation.getCurrentPosition(
@@ -196,7 +275,7 @@ function startTracking() {
       gameState.lastPosition = [latitude, longitude];
       
       // Update map and player marker
-      gameState.map.setView([latitude, longitude], 16);
+      gameState.map.setView([latitude, longitude], gameState.mapInitialZoom);
       gameState.playerMarker.setLatLng([latitude, longitude]).addTo(gameState.map);
       
       // Generate items around player
@@ -215,9 +294,13 @@ function startTracking() {
       elements.trackButton.classList.add('tracking');
       
       // Play sound and music
+      playSound('startTracking');
+      
+      // Start background music if enabled
       if (gameState.audioEnabled) {
-        gameState.soundEffects.startTracking.play();
-        gameState.backgroundMusic.play();
+        gameState.backgroundMusic.play().catch(err => {
+          console.error('Error playing background music:', err);
+        });
       }
       
       showToast('Tracking started! Find cookies and tickets around you.');
@@ -225,12 +308,17 @@ function startTracking() {
     error => {
       hideLoading();
       locationError(error);
-    }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
 // Stop location tracking
 function stopTracking() {
+  console.log('Stopping location tracking');
+  
+  if (!gameState.tracking) return; // Not tracking
+  
   if (gameState.watchId !== null) {
     navigator.geolocation.clearWatch(gameState.watchId);
     gameState.watchId = null;
@@ -245,13 +333,23 @@ function stopTracking() {
   clearItemMarkers();
   
   // Play sound and stop music
-  if (gameState.audioEnabled) {
-    gameState.soundEffects.stopTracking.play();
-    gameState.backgroundMusic.pause();
-    gameState.backgroundMusic.currentTime = 0;
-  }
+  playSound('stopTracking');
+  
+  // Stop background music
+  gameState.backgroundMusic.pause();
+  gameState.backgroundMusic.currentTime = 0;
   
   showToast('Tracking stopped.');
+}
+
+// Center map on player's current position
+function centerMapOnPlayer() {
+  if (gameState.playerPosition) {
+    gameState.map.setView(gameState.playerPosition, gameState.mapInitialZoom);
+    showToast('Map centered on your location');
+  } else {
+    showToast('Your location is not available yet');
+  }
 }
 
 // Update player position based on geolocation data
@@ -269,8 +367,10 @@ function updatePlayerPosition(position) {
   // Update player marker
   gameState.playerMarker.setLatLng(newPosition);
   
-  // Center map on player
-  gameState.map.setView(newPosition);
+  // Only center map if user hasn't manually moved it
+  if (gameState.map.autoFollowing !== false) {
+    gameState.map.setView(newPosition);
+  }
   
   // Check for collected items
   checkItemCollection();
@@ -290,6 +390,8 @@ function updatePlayerPosition(position) {
 
 // Generate random items around the player
 function generateItems() {
+  console.log('Generating items around player');
+  
   // Clear existing items
   gameState.items = [];
   clearItemMarkers();
@@ -319,6 +421,8 @@ function generateItems() {
     // Add marker to map
     addItemMarker(item);
   }
+  
+  console.log(`Generated ${itemCount} items`);
 }
 
 // Add marker for an item on the map
@@ -333,6 +437,9 @@ function addItemMarker(item) {
   });
   
   const marker = L.marker(item.position, { icon }).addTo(gameState.map);
+  
+  // Add a popup with item information
+  marker.bindPopup(item.type === 'cookie' ? 'Tasty Cookie' : 'Golden Ticket');
   
   // Store marker reference
   gameState.itemMarkers.push({ id: item.id, marker });
@@ -355,8 +462,8 @@ function checkItemCollection() {
     if (!item.collected) {
       const distance = calculateDistance(gameState.playerPosition, item.position);
       
-      // If player is close enough to item (10 meters)
-      if (distance <= 10) {
+      // If player is close enough to item (15 meters)
+      if (distance <= 15) {
         collectItem(item);
       }
     }
@@ -371,15 +478,11 @@ function collectItem(item) {
   // Update stats
   if (item.type === 'cookie') {
     gameState.stats.cookies += item.value;
-    if (gameState.audioEnabled) {
-      gameState.soundEffects.cookieCollect.play();
-    }
+    playSound('cookieCollect');
     showToast(`Collected a cookie! (+${item.value})`);
   } else {
     gameState.stats.tickets += item.value;
-    if (gameState.audioEnabled) {
-      gameState.soundEffects.ticketCollect.play();
-    }
+    playSound('ticketCollect');
     showToast(`Collected a golden ticket! (+${item.value})`);
   }
   
@@ -394,6 +497,47 @@ function collectItem(item) {
   }
 }
 
+// Play a sound effect if enabled
+function playSound(soundName) {
+  if (gameState.sfxEnabled && gameState.soundEffects[soundName]) {
+    // Clone the audio to allow overlapping sounds
+    const sound = gameState.soundEffects[soundName].cloneNode();
+    sound.volume = GAME_CONFIG.soundEffectsVolume;
+    
+    sound.play().catch(err => {
+      console.warn(`Error playing ${soundName} sound:`, err);
+    });
+  }
+}
+
+// Toggle background music on/off
+function toggleMusic() {
+  gameState.audioEnabled = !gameState.audioEnabled;
+  
+  if (gameState.audioEnabled) {
+    elements.audioControl.textContent = '🔊';
+    if (gameState.tracking) {
+      gameState.backgroundMusic.play().catch(err => {
+        console.error('Error playing background music:', err);
+      });
+    }
+  } else {
+    elements.audioControl.textContent = '🔇';
+    gameState.backgroundMusic.pause();
+  }
+  
+  showToast(gameState.audioEnabled ? 'Music on' : 'Music off');
+}
+
+// Toggle sound effects on/off
+function toggleSoundEffects() {
+  gameState.sfxEnabled = !gameState.sfxEnabled;
+  
+  elements.sfxControl.textContent = gameState.sfxEnabled ? '🔔' : '🔕';
+  
+  showToast(gameState.sfxEnabled ? 'Sound effects on' : 'Sound effects off');
+}
+
 // Update stats display
 function updateStatsDisplay() {
   elements.stats.steps.textContent = gameState.stats.steps;
@@ -402,27 +546,18 @@ function updateStatsDisplay() {
   elements.stats.tickets.textContent = gameState.stats.tickets;
 }
 
-// Toggle audio on/off
-function toggleAudio() {
-  gameState.audioEnabled = !gameState.audioEnabled;
-  
-  if (gameState.audioEnabled) {
-    elements.audioControl.textContent = '🔊';
-    if (gameState.tracking) {
-      gameState.backgroundMusic.play();
-    }
-  } else {
-    elements.audioControl.textContent = '🔇';
-    gameState.backgroundMusic.pause();
-  }
-}
-
 // Show a toast notification
 function showToast(message) {
   elements.toast.textContent = message;
   elements.toast.classList.add('show');
   
-  setTimeout(() => {
+  // Clear any existing timeout
+  if (elements.toast.timeoutId) {
+    clearTimeout(elements.toast.timeoutId);
+  }
+  
+  // Set new timeout
+  elements.toast.timeoutId = setTimeout(() => {
     elements.toast.classList.remove('show');
   }, 3000);
 }
@@ -479,6 +614,7 @@ function generateRandomPositionAround(center, radius) {
   
   // Generate random values for angle and distance
   const angle = Math.random() * Math.PI * 2;
+  // Use sqrt to get more uniform distribution
   const distance = Math.sqrt(Math.random()) * radiusInDegrees;
   
   // Calculate new position
@@ -512,5 +648,14 @@ function generateId() {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
+// Handle manual map movement by the user
+gameState.map && gameState.map.on('dragstart', function() {
+  // User manually moved the map, disable auto-following
+  gameState.map.autoFollowing = false;
+});
+
 // Initialize the game when the page loads
-window.addEventListener('load', initGame);
+window.addEventListener('load', function() {
+  console.log('Page loaded, initializing game');
+  initGame();
+});

@@ -18,6 +18,7 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      background-color: #f7e9d7;
     }
     
     /* Map container */
@@ -73,11 +74,17 @@
       background-color: #F44336;
     }
     
-    /* Audio control */
-    .audio-control {
+    /* Audio controls */
+    .controls-top {
       position: absolute;
       top: 15px;
       right: 15px;
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    
+    .control-button {
       background-color: white;
       width: 40px;
       height: 40px;
@@ -86,8 +93,73 @@
       justify-content: center;
       align-items: center;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-      z-index: 10;
       cursor: pointer;
+      transition: background-color 0.2s;
+      border: none;
+      font-size: 20px;
+    }
+    
+    .control-button:hover {
+      background-color: #f0f0f0;
+    }
+    
+    /* Welcome overlay */
+    .welcome-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(247, 233, 215, 0.95);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 3000;
+      transition: opacity 0.5s;
+    }
+    
+    .welcome-content {
+      background-color: white;
+      padding: 30px;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(139, 69, 19, 0.2);
+    }
+    
+    .welcome-title {
+      color: #8B4513;
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+    
+    .welcome-description {
+      margin-bottom: 25px;
+      line-height: 1.6;
+      color: #555;
+    }
+    
+    .welcome-button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    .welcome-button:hover {
+      background-color: #3e8e41;
+    }
+    
+    .cookie-icon {
+      font-size: 60px;
+      margin-bottom: 15px;
     }
     
     /* Toast notification */
@@ -138,6 +210,17 @@
       100% { transform: rotate(360deg); }
     }
     
+    /* Map controls */
+    .map-controls {
+      position: absolute;
+      bottom: 100px;
+      right: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+    }
+    
     /* Permission dialog */
     .permission-dialog {
       position: fixed;
@@ -175,6 +258,19 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
+  <!-- Welcome overlay -->
+  <div id="welcomeOverlay" class="welcome-overlay">
+    <div class="welcome-content">
+      <div class="cookie-icon">🍪</div>
+      <h1 class="welcome-title">Cookie Hunt Challenge</h1>
+      <p class="welcome-description">
+        Explore the world around you to collect virtual cookies and golden tickets! 
+        Walk around to find hidden items and redeem them for real treats.
+      </p>
+      <button id="startButton" class="welcome-button">START THE HUNT</button>
+    </div>
+  </div>
+  
   <!-- Map container -->
   <div id="map"></div>
   
@@ -193,8 +289,18 @@
     <button id="trackButton" class="track-button">START TRACKING</button>
   </div>
   
-  <!-- Audio control -->
-  <div id="audioControl" class="audio-control">🔊</div>
+  <!-- Top controls -->
+  <div class="controls-top">
+    <button id="audioControl" class="control-button">🔊</button>
+    <button id="sfxControl" class="control-button">🔔</button>
+  </div>
+  
+  <!-- Map controls -->
+  <div class="map-controls">
+    <button id="zoomIn" class="control-button">+</button>
+    <button id="zoomOut" class="control-button">-</button>
+    <button id="recenter" class="control-button">📍</button>
+  </div>
   
   <!-- Toast notification -->
   <div id="toast" class="toast"></div>
@@ -212,6 +318,11 @@
       <button id="requestPermission" class="permission-button">Allow Location Access</button>
     </div>
   </div>
+
+  <!-- Audio elements -->
+  <audio id="backgroundMusic" preload="auto" loop>
+    <source src="background-music.mp3" type="audio/mpeg">
+  </audio>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
