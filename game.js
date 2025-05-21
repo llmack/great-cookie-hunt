@@ -153,7 +153,7 @@ function updatePlayerAvatar(avatarId) {
   
   // Create icon
   const playerIcon = L.icon({
-    iconUrl: `./avatars/${avatarConfig.id}.svg`,
+    iconUrl: `avatars/${avatarConfig.id}.svg`,
     iconSize: avatarConfig.iconSize,
     iconAnchor: [avatarConfig.iconSize[0]/2, avatarConfig.iconSize[1]],
     popupAnchor: [0, -avatarConfig.iconSize[1]]
@@ -581,7 +581,7 @@ function addItemMarker(item) {
   
   if (item.type === 'cookie') {
     // Use our custom cookie SVGs
-    iconUrl = `./cookies/${item.cookieType}.svg`;
+    iconUrl = `cookies/${item.cookieType}.svg`;
     
     // Set popup title based on cookie type
     switch(item.cookieType) {
