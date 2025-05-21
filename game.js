@@ -42,8 +42,7 @@ let gameState = {
   watchId: null,
   items: [], // {id, type, position, value, collected, cookieType}
   stats: {
-    steps: 0,
-    distance: 0,
+    distance: 0, // in miles (converted from meters)
     cookies: 0,
     tickets: 0
   },
@@ -283,31 +282,88 @@ function selectAvatar(avatarId) {
   closeAvatarModal();
 }
 
-// Just stop tracking without removing markers (keeps the map view and cookies visible)
+// Toggle tracking with the stop button
 function stopTrackingOnly() {
-  if (!gameState.tracking) {
-    showToast('Tracking is already stopped');
-    return;
+  // If tracking is already active, stop it
+  if (gameState.tracking) {
+    if (gameState.watchId !== null) {
+      navigator.geolocation.clearWatch(gameState.watchId);
+      gameState.watchId = null;
+    }
+    
+    // Update game state and UI
+    gameState.tracking = false;
+    elements.stopTrackingButton.textContent = '▶️';
+    elements.stopTrackingButton.classList.add('stopped');
+    elements.trackButton.textContent = 'START TRACKING';
+    elements.trackButton.classList.remove('tracking');
+    
+    // Play sound and stop music
+    playSound('stopTracking');
+    
+    // Stop background music
+    gameState.backgroundMusic.pause();
+    
+    showToast('Tracking paused, but you can still explore the map!');
+  } 
+  // If tracking is stopped, restart it
+  else {
+    // Restart tracking
+    restartTracking();
+    
+    // Update button state
+    elements.stopTrackingButton.textContent = '⏹️';
+    elements.stopTrackingButton.classList.remove('stopped');
   }
+}
+
+// Restart tracking without regenerating items
+function restartTracking() {
+  if (gameState.tracking) return; // Already tracking
   
-  if (gameState.watchId !== null) {
-    navigator.geolocation.clearWatch(gameState.watchId);
-    gameState.watchId = null;
-  }
+  showLoading();
   
-  // Update game state and UI
-  gameState.tracking = false;
-  elements.trackButton.textContent = 'START TRACKING';
-  elements.trackButton.classList.remove('tracking');
-  
-  // Play sound and stop music
-  playSound('stopTracking');
-  
-  // Stop background music
-  gameState.backgroundMusic.pause();
-  gameState.backgroundMusic.currentTime = 0;
-  
-  showToast('Tracking stopped, but you can still explore the map!');
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      hideLoading();
+      
+      const { latitude, longitude } = position.coords;
+      gameState.playerPosition = [latitude, longitude];
+      
+      // Update map and player marker
+      gameState.map.setView([latitude, longitude], gameState.mapInitialZoom);
+      gameState.playerMarker.setLatLng([latitude, longitude]).addTo(gameState.map);
+      
+      // Start continuous tracking
+      gameState.watchId = navigator.geolocation.watchPosition(
+        updatePlayerPosition,
+        locationError,
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+      );
+      
+      // Update game state and UI
+      gameState.tracking = true;
+      elements.trackButton.textContent = 'STOP TRACKING';
+      elements.trackButton.classList.add('tracking');
+      
+      // Play sound and resume music
+      playSound('startTracking');
+      
+      // Start background music if enabled
+      if (gameState.audioEnabled) {
+        gameState.backgroundMusic.play().catch(err => {
+          console.error('Error playing background music:', err);
+        });
+      }
+      
+      showToast('Tracking resumed!');
+    },
+    error => {
+      hideLoading();
+      locationError(error);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
 }
 
 // Start the game (from welcome screen)
@@ -516,13 +572,15 @@ function updatePlayerPosition(position) {
   
   // Update stats if moved enough
   if (distance >= GAME_CONFIG.minDistanceChange) {
-    gameState.stats.steps++;
-    gameState.stats.distance += Math.round(distance);
+    // Convert distance from meters to miles (1 meter = 0.000621371 miles)
+    // And ensure we're incrementing in 0.1 mile increments
+    const distanceInMiles = distance * 0.000621371;
+    gameState.stats.distance += distanceInMiles;
     
     // Only count as a new position if we've moved enough
     gameState.lastPosition = gameState.playerPosition;
     
-    // Update UI
+    // Update UI with the rounded distance to 1 decimal place
     updateStatsDisplay();
   }
 }
@@ -732,8 +790,8 @@ function toggleSoundEffects() {
 
 // Update stats display
 function updateStatsDisplay() {
-  elements.stats.steps.textContent = gameState.stats.steps;
-  elements.stats.distance.textContent = gameState.stats.distance;
+  // Format distance to 1 decimal place
+  elements.stats.distance.textContent = gameState.stats.distance.toFixed(1);
   elements.stats.cookies.textContent = gameState.stats.cookies;
   elements.stats.tickets.textContent = gameState.stats.tickets;
 }

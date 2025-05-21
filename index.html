@@ -108,6 +108,11 @@
       box-shadow: 0 0 8px #4fc3f7;
     }
     
+    .control-button.stopped {
+      background-color: #ffcdd2;
+      box-shadow: 0 0 8px #e57373;
+    }
+    
     /* Welcome overlay */
     .welcome-overlay {
       position: fixed;
@@ -387,8 +392,7 @@
   <div class="controls">
     <div class="stats">
       <div class="stats-column">
-        <div>Steps: <span id="steps">0</span></div>
-        <div>Distance: <span id="distance">0</span>m</div>
+        <div>Distance: <span id="distance">0.0</span> miles</div>
       </div>
       <div class="stats-column">
         <div class="cookie-count">🍪 Cookies: <span id="cookies">0</span></div>
