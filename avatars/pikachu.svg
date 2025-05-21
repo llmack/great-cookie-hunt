@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Yellow body -->
+  <ellipse cx="50" cy="55" rx="30" ry="35" fill="#fdd835" />
+  
+  <!-- Head -->
+  <circle cx="50" cy="35" r="25" fill="#fdd835" />
+  
+  <!-- Ears -->
+  <path d="M35,20 L25,5 L30,20 Z" fill="#fdd835" stroke="#000" stroke-width="1" />
+  <path d="M65,20 L75,5 L70,20 Z" fill="#fdd835" stroke="#000" stroke-width="1" />
+  
+  <!-- Eyes -->
+  <ellipse cx="40" cy="30" rx="5" ry="5" fill="black" />
+  <ellipse cx="60" cy="30" rx="5" ry="5" fill="black" />
+  
+  <!-- Cheeks -->
+  <circle cx="30" cy="40" r="5" fill="#e53935" />
+  <circle cx="70" cy="40" r="5" fill="#e53935" />
+  
+  <!-- Nose -->
+  <ellipse cx="50" cy="38" rx="3" ry="2" fill="black" />
+  
+  <!-- Mouth -->
+  <path d="M45,42 C48,48 52,48 55,42" fill="none" stroke="black" stroke-width="1" />
+  
+  <!-- Tail -->
+  <path d="M80,50 L90,30 L95,35 L85,55 Z" fill="#fdd835" stroke="#000" stroke-width="1" />
+</svg>
