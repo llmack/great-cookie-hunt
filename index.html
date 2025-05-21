@@ -1,13 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/cookie.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Great Cookie Hunt</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cookie Hunt - Location Game</title>
+  <style>
+    /* Basic Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    /* Map container */
+    #map {
+      flex-grow: 1;
+      width: 100%;
+      z-index: 1;
+    }
+    
+    /* Controls panel */
+    .controls {
+      background-color: white;
+      padding: 15px;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 2;
+    }
+    
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+    
+    .stats-column {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .cookie-count {
+      color: #8B4513;
+      font-weight: bold;
+    }
+    
+    .ticket-count {
+      color: #DAA520;
+      font-weight: bold;
+    }
+    
+    .track-button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px;
+      width: 100%;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    .track-button.tracking {
+      background-color: #F44336;
+    }
+    
+    /* Audio control */
+    .audio-control {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background-color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+      cursor: pointer;
+    }
+    
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 14px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .toast.show {
+      opacity: 1;
+    }
+    
+    /* Loading indicator */
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Permission dialog */
+    .permission-dialog {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    
+    .dialog-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 400px;
+      text-align: center;
+    }
+    
+    .permission-button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin-top: 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <!-- Map container -->
+  <div id="map"></div>
+  
+  <!-- Controls panel -->
+  <div class="controls">
+    <div class="stats">
+      <div class="stats-column">
+        <div>Steps: <span id="steps">0</span></div>
+        <div>Distance: <span id="distance">0</span>m</div>
+      </div>
+      <div class="stats-column">
+        <div class="cookie-count">🍪 Cookies: <span id="cookies">0</span></div>
+        <div class="ticket-count">🎫 Tickets: <span id="tickets">0</span></div>
+      </div>
+    </div>
+    <button id="trackButton" class="track-button">START TRACKING</button>
+  </div>
+  
+  <!-- Audio control -->
+  <div id="audioControl" class="audio-control">🔊</div>
+  
+  <!-- Toast notification -->
+  <div id="toast" class="toast"></div>
+  
+  <!-- Loading indicator -->
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+  </div>
+  
+  <!-- Permission dialog -->
+  <div id="permissionDialog" class="permission-dialog" style="display: none;">
+    <div class="dialog-content">
+      <h3>Location Permission Required</h3>
+      <p>To play Cookie Hunt, we need access to your location to track your movement and place virtual items around you.</p>
+      <button id="requestPermission" class="permission-button">Allow Location Access</button>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Game scripts -->
+  <script src="game.js"></script>
+</body>
 </html>
