@@ -1,6 +1,6 @@
 The Great Cookie Hunt is an Android and iOS location-service based (with location permissions), interactive map game in which you collect cookies and golden tickets to redeem at participating local cookie shops. 
 
-Inspired by a local job opening, this prototype is fully functional but just for fun. Feedback and suggestions are welcome! 
+Inspired by a local job posting to develop digital strategy for a certain cookie shop (that did not pan out), this prototype is fully functional but just for fun. Feedback and suggestions are welcome! 
 
 Learn more about the Great Cookie Hunt story at https://fromtherabbithole.substack.com/p/replit-and-the-great-cookie-hunt
 
